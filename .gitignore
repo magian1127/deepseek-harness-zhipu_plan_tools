@@ -1,0 +1,21 @@
+# 构建产物(tsc / tsdown 直出,prepare 与 prepack 重新生成)
+node_modules/
+.tsbuild/
+/lib/
+/bin/
+*.map
+*.tsbuildinfo
+*.tgz
+
+# 诊断与临时
+*.log
+zhipu-diag.log
+
+# 编辑器
+.vs/
+.idea/
+
+# 系统杂项
+Thumbs.db
+.DS_Store
+.mimosa/

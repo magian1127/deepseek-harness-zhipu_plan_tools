@@ -1,0 +1,26 @@
+# deepseek-harness-zhipu_plan_tools bundle patch(持久挂载通道,行 id `dsh-zhipu`)
+#
+# 本文件随包发布并由 package.json 的 dsh.bundle.patch 引用:
+#
+#   dsh plugin --profile web add deepseek-harness-zhipu_plan_tools
+#
+# 会把本包编进 profile 的 dsh.profile.bundles,冷启动时挂载(发布环境语义)。
+# 本机开发安装用 CLI:
+#
+#   node bin/dsh-zhipu.mjs install --profile web --link <项目目录>
+#
+# 热通道按环境自动选择(dsh-zh reconcile / query-URL 桥接包),见 AGENTS.md。
+#
+# web 行:内置 web_search / web_fetch 的后端指向本插件注册的 provider。
+# - searchProvider → zhipu-web-search-prime(智谱联网搜索 MCP)
+# - fetchProvider  → zhipu-web-reader(智谱网页读取 MCP;web_fetch 工具本身
+#   默认关闭——DSH 预设 tool-web 行 fetch:false,本 patch 不改该开关,
+#   部署启用 fetch 后自动走智谱)
+# 插件行:注册 3 个 github_* 仓库工具、settings 命名空间与客户端设置卡片。
+- id: web
+  config:
+    searchProvider: zhipu-web-search-prime
+    fetchProvider: zhipu-web-reader
+- insert:
+    - id: dsh-zhipu
+      name: deepseek-harness-zhipu_plan_tools

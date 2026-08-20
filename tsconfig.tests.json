@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".tsbuild",
+    "noCheck": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": [
+    "src/ambient.d.ts",
+    "src/*.ts",
+    "src/tests/*.mts"
+  ],
+  "exclude": [
+    "src/client.ts",
+    "src/client-logic.ts"
+  ]
+}

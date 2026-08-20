@@ -1,0 +1,84 @@
+{
+  "name": "deepseek-harness-zhipu_plan_tools",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "智谱 MCP 三件套 for DSH:联网搜索(search)、网页读取(reader)、开源仓库(zread)原生 provider 与工具,附设置页卡片。Zhipu MCP suite (web search / reader / zread) as native DSH providers and tools, with a settings card.",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "bin": {
+    "dsh-zhipu": "bin/dsh-zhipu.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings-plugins",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-api-remotes"
+      ]
+    }
+  },
+  "files": [
+    "lib",
+    "bin",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "src",
+    "tsconfig.json",
+    "tsconfig.client.json",
+    "tsconfig.cli.json",
+    "tsconfig.tests.json",
+    "tsdown.config.ts",
+    "verify-build.mjs"
+  ],
+  "scripts": {
+    "build:host": "tsc -p tsconfig.json && tsdown --config tsdown.config.ts",
+    "build:client": "tsc -p tsconfig.client.json && tsdown --config tsdown.config.ts",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "build:tests": "tsc -p tsconfig.tests.json",
+    "build": "npm run build:host && npm run build:client && npm run build:cli && npm run build:tests",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.cli.json --noEmit",
+    "test": "npm run build && node --test \".tsbuild/tests/*.test.mjs\"",
+    "verify": "node verify-build.mjs",
+    "prepare": "npm run build",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "zhipu",
+    "bigmodel",
+    "glm",
+    "mcp",
+    "search",
+    "reader",
+    "zread"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsdown": "^0.22.2",
+    "typescript": "^5.8.3"
+  }
+}

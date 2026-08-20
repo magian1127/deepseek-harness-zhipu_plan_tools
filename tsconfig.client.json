@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "lib",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "emitDeclarationOnly": true,
+    "sourceMap": false
+  },
+  "include": [
+    "src/ambient.d.ts",
+    "src/client.ts",
+    "src/client-logic.ts"
+  ],
+  "exclude": []
+}

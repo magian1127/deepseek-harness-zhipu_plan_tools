@@ -1,0 +1,104 @@
+/**
+ * 凭据解析:三层兜底 —— credentials 服务 → 环境变量 → 直读凭据文件。
+ *
+ * 关键修复点(沿 ZhiPu_web_search 2026-08 复盘):harness 主进程不导出
+ * `DSH_HOME`,home 解析必须带 `~/.dsh` 回退,与官方 resolveDshHome 语义
+ * 对齐(显式配置 > $DSH_HOME > ~/.dsh,空白视为未设置)。曾因缺此回退
+ * 导致 provider 恒 unavailable(AGENTS.md 约束 11)。
+ *
+ * key 永不写入配置、日志或错误信息(AGENTS.md 约束 10)。
+ */
+import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import type { CredentialsService, HostContext } from './types.js'
+import {
+  WEB_PROVIDER_CREDENTIAL_MISSING_CODE,
+  ZHIPU_CREDENTIAL_MISSING_CODE,
+  ZhipuError,
+} from './errors.js'
+
+/** DSH 凭据文件名(相对 DSH 主目录)。 */
+const CREDENTIALS_FILE = '.credentials.yaml'
+
+/**
+ * DSH 主目录:非空白的 `$DSH_HOME`,否则回退官方默认 `~/.dsh`。
+ * 与官方 `resolveDshHome`(@deepseek-ai/dsh-home-paths)语义一致。
+ */
+export function dshHome(): string {
+  const envHome = process.env.DSH_HOME
+  if (envHome !== undefined && envHome.trim().length > 0) return envHome
+  return join(homedir(), '.dsh')
+}
+
+/** 当前进程环境是否有该凭据。 */
+function credentialInEnvironment(ref: string): boolean {
+  const value = process.env[ref]
+  return value !== undefined && value.length > 0
+}
+
+/** 凭据文件是否存有该键(同步正则探测,不解析完整 YAML;格式坑用同正则验证)。 */
+function credentialInFile(ref: string, home: string = dshHome()): string | undefined {
+  try {
+    const text = readFileSync(join(home, CREDENTIALS_FILE), 'utf8')
+    const match = new RegExp(`^${ref}:\\s*(\\S+)`, 'm').exec(text)
+    return match === null ? undefined : match[1]
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * 本地可用性检查(官方契约:cheap local check,不得发网络请求)。
+ * 凭据文件可热更新,因此每次调用现查,不缓存。
+ */
+export function credentialAvailable(ref: string): boolean {
+  return credentialInEnvironment(ref) || credentialInFile(ref) !== undefined
+}
+
+/**
+ * 解析 API key:优先 credentials 服务(官方解析链,含热更新),回退
+ * 环境变量,再回退直读 `~/.dsh/.credentials.yaml`。
+ *
+ * @param scope 'web' 走官方 WebError 语义码,'tool' 走本插件码。
+ * @throws ZhipuError(*_CREDENTIAL_MISSING)三层都拿不到时。
+ */
+export async function resolveApiKey(
+  ctx: HostContext | undefined,
+  ref: string,
+  scope: 'web' | 'tool',
+  signal?: AbortSignal,
+): Promise<string> {
+  // 1) credentials 服务(可选服务:缺失时静默跳过)。
+  const credentials = ctx?.get('credentials') as CredentialsService | undefined | null
+  if (credentials !== undefined && credentials !== null) {
+    try {
+      const resolved = await credentials.resolve(ref)
+      if (resolved !== undefined && resolved !== null && resolved.value.length > 0) {
+        return resolved.value
+      }
+    } catch {
+      // 服务失败继续走回退,不掩盖后续错误。
+    }
+  }
+  if (signal?.aborted === true) throw aborting(scope)
+
+  // 2) 环境变量。
+  const envValue = process.env[ref]
+  if (envValue !== undefined && envValue.length > 0) return envValue
+
+  // 3) 直读凭据文件(带 ~/.dsh 回退)。
+  const fileValue = credentialInFile(ref)
+  if (fileValue !== undefined && fileValue.length > 0) return fileValue
+
+  const code = scope === 'web' ? WEB_PROVIDER_CREDENTIAL_MISSING_CODE : ZHIPU_CREDENTIAL_MISSING_CODE
+  throw new ZhipuError(
+    `[${code}] 未找到凭据 ${ref},请先在凭据配置($HOME/.dsh/.credentials.yaml)或环境变量中设置智谱 Coding Plan API Key`,
+    code,
+  )
+}
+
+function aborting(scope: 'web' | 'tool'): ZhipuError {
+  const code = scope === 'web' ? 'WEB_ABORTED' : 'ZHIPU_ABORTED'
+  return new ZhipuError(`[${code}] 智谱调用已中止`, code)
+}

@@ -41,7 +41,8 @@
 - DeepSeek Harness Web GUI,profile `web`,≥ `0.1.0-rc.7`(设置卡片需要
   `settings.register` 的 `exposeToClients` 支持)
 - Node.js `^22.19.0 || >=24.0.0`
-- 智谱 GLM Coding Plan API Key(`ZAI_CODING_CN_API_KEY`)
+- 智谱 GLM Coding Plan API Key(`ZAI_CODING_CN_API_KEY`),添加方式见
+  [首次使用](#首次使用添加-zai-coding-cn-提供商)
 
 ## 安装
 
@@ -68,6 +69,21 @@ CLI 会自动选择热通道:dsh-zh 在运行图中时由其 manifest reconcile 
 ```sh
 npx -y deepseek-harness-zhipu_plan_tools status --profile web
 ```
+
+## 首次使用：添加 zai-coding-cn 提供商
+
+使用本插件前,先在 DSH 设置中添加 `zai-coding-cn` 提供商(一个步骤,安装后只需做一次):
+
+1. 打开 **DSH 设置 → 模型**;
+2. 「提供方」下拉选择 **`zai-coding-cn`**(注意不是海外的 `zai`,本插件走智谱中国区端点 `open.bigmodel.cn`);
+3. 「API 密钥」**留空**即可(留空 = 使用环境认证),点保存。
+
+保存后 DSH 会自动使用 `ZAI_CODING_CN_API_KEY` 参数(即配置中 `apiKeyEnv: ZAI_CODING_CN_API_KEY`)
+作为该提供商的 API Key——这正是本插件默认的凭据引用名 `credentialRef`。
+
+因此你只需保证 `ZAI_CODING_CN_API_KEY` 已存在于环境变量或 `~/.dsh/.credentials.yaml`,
+插件零额外配置即可取到智谱 Coding Plan Key;若你在环境变量中配置了别的名字,可在设置卡片中
+把 `credentialRef` 改成对应名字。
 
 ## 启用 web_fetch(网页读取)
 

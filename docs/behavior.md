@@ -25,13 +25,18 @@
 
 ## 凭据与安全
 
-- 统一引用 `ZAI_CODING_CN_API_KEY`（智谱 GLM Coding Plan Key）。
-- 解析顺序：DSH 凭据服务 `resolve()` → 环境变量 → 直读 `~/.dsh/.credentials.yaml`；`available()` 用同序本地检查、不发网络请求。
+- **前置步骤**：使用前先在 DSH 设置 → 模型添加 `zai-coding-cn` 提供商（「API 密钥」留空，
+  保存后 DSH 自动使用 `ZAI_CODING_CN_API_KEY` 参数，即配置中
+  `apiKeyEnv: ZAI_CODING_CN_API_KEY`）——与本插件默认 `credentialRef` 同名，零额外配置。
+  注意选 `zai-coding-cn`（中国区）而非海外的 `zai`，本插件走 `open.bigmodel.cn` 端点。
+- 统一引用 `ZAI_CODING_CN_API_KEY`（智谱 GLM Coding Plan Key），解析顺序：
+  DSH 凭据服务 `resolve()` → 环境变量 → 直读 `~/.dsh/.credentials.yaml`；`available()`
+  用同序本地检查、不发网络请求。
 - key 永不写入 cordis.yml、日志或错误信息；不做遥测、不上传数据、不注册额外网络端点（仅智谱官方 MCP 端点）。
 
 ## 边界与失败模式
 
-- **凭据缺失**：`web_search` 报结构化 unavailable 错误；`web_fetch`（若启用）同理；`github_*` 工具执行时报 `ZHIPU_CREDENTIAL_MISSING`。
+- **凭据缺失**：`web_search` 报结构化 unavailable 错误；`web_fetch`（若启用）同理；`github_*` 工具执行时报 `ZHIPU_CREDENTIAL_MISSING`。第一反应：确认已添加 `zai-coding-cn` 提供商，且 `ZAI_CODING_CN_API_KEY` 存在于环境变量或 `~/.dsh/.credentials.yaml`。
 - **取消**：`exec.signal` 全程透传；DELETE 清理失败静默；abort 后不等清理。
 - **MCP 会话不复用**：每调用完整生命周期，多 ~1 RTT（留路线图优化）。
 - **webReader 正文截断** 200_000 字符（对齐 `DEFAULT_FETCH_MAX_OUTPUT_CHARS`）。
@@ -43,7 +48,7 @@
 | --- | --- | --- |
 | `WEB_PROVIDER_CONFIGURED_MISSING` | 配置的 provider id 未注册 | 插件行没挂上 / 被卸载 |
 | `WEB_PROVIDER_CONFIGURED_UNAVAILABLE` | 已注册但 `available()` false | 凭据本地检查失败（查 `dshHome()` 回退） |
-| `WEB_PROVIDER_CREDENTIAL_MISSING` | resolve 阶段拿不到键 | 凭据服务/文件内容问题 |
+| `WEB_PROVIDER_CREDENTIAL_MISSING` | resolve 阶段拿不到键 | 确认已添加 `zai-coding-cn` 提供商；凭据服务/文件内容问题 |
 | `WEB_PROVIDER_ERROR` | provider 调用链失败 | 看 message 的 `[CODE]` 前缀与 cause |
 | `ZHIPU_CREDENTIAL_MISSING` | 仓库工具拿不到凭据 | 同上 |
 | `ZHIPU_DISABLED` | 仓库工具被设置停用 | 设置页开启 `enabled` + `zread` |

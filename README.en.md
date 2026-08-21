@@ -42,7 +42,8 @@ card. The vision MCP is researched and planned — see the [roadmap](#roadmap).
 - DeepSeek Harness Web GUI, profile `web`, ≥ `0.1.0-rc.7` (settings card needs
   `exposeToClients` support in `settings.register`)
 - Node.js `^22.19.0 || >=24.0.0`
-- Zhipu GLM Coding Plan API key (`ZAI_CODING_CN_API_KEY`)
+- Zhipu GLM Coding Plan API key (`ZAI_CODING_CN_API_KEY`) — see
+  [First use](#first-use-add-the-zai-coding-cn-provider)
 
 ## Install
 
@@ -68,6 +69,24 @@ written with an honest hint. Check status:
 ```sh
 npx -y deepseek-harness-zhipu_plan_tools status --profile web
 ```
+
+## First use: add the zai-coding-cn provider
+
+Before using this plugin, add the `zai-coding-cn` provider in DSH settings (one step, once
+after install):
+
+1. Open **DSH Settings → Models**;
+2. In the provider dropdown pick **`zai-coding-cn`** (not the overseas `zai` — this plugin
+   targets the Zhipu China endpoint `open.bigmodel.cn`);
+3. Leave the **API key** empty (empty = environment authentication) and save.
+
+After saving, DSH automatically uses the `ZAI_CODING_CN_API_KEY` parameter (recorded as
+`apiKeyEnv: ZAI_CODING_CN_API_KEY` in config) as this provider's API key — the same
+reference this plugin uses as its default `credentialRef`.
+
+So you only need `ZAI_CODING_CN_API_KEY` to exist in the environment or
+`~/.dsh/.credentials.yaml`; the plugin picks it up with zero extra config. If you store the
+key under a different env var name, set `credentialRef` to that name in the settings card.
 
 ## Enabling web_fetch (reader)
 

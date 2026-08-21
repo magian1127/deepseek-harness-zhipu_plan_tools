@@ -30,7 +30,7 @@
   把 `web` 行的 `searchProvider` / `fetchProvider` 指向本插件;模型看到的工具名不变
   (`web_search` / `web_fetch`),后端换成智谱。
 - **仓库工具 = 原生注册**:三个 `github_*` 工具经 `ctx.tools.register` 注册,带系统提示
-  指引与通用卡片,60 秒协作超时。
+  指引与通用卡片,60 秒协作超时；历史中的过期或畸形参数仅降级为通用卡片,不影响会话重放,实际执行仍严格校验参数。
 - **凭据**:统一引用 `ZAI_CODING_CN_API_KEY`(智谱 GLM Coding Plan API Key),三层解析
   (DSH 凭据服务 → 环境变量 → `~/.dsh/.credentials.yaml` 直读);key 永不写入配置或日志。
 - **热更新**:host 侧产物自监视热重载(改 `src/` → `npm run build` 即生效,无需重启);

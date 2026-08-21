@@ -8,15 +8,23 @@ import type { Disposer, HostContext } from '../types.js'
 
 interface MockCall { kind: string; idOrName: string }
 
+interface RegisteredTool {
+  readonly name: string
+  presentCall?(args: unknown): unknown
+  execute(args: unknown, exec: { signal?: AbortSignal }): Promise<unknown>
+}
+
 function createMockContext(options?: { settingsBase?: Record<string, unknown> }): {
   ctx: HostContext
   calls: MockCall[]
   live: Set<string>
+  tools: Map<string, RegisteredTool>
   fireSettings: (next: Record<string, unknown>) => void
   runDisposers: () => void
 } {
   const calls: MockCall[] = []
   const live = new Set<string>()
+  const tools = new Map<string, RegisteredTool>()
   const disposers: Array<() => void> = []
   let settingsWatch: ((next: Record<string, unknown>) => void) | undefined
 
@@ -38,7 +46,12 @@ function createMockContext(options?: { settingsBase?: Record<string, unknown> })
         }
       }
       if (name === 'tools') {
-        return { register: (t: { name: string }) => track('tool', t.name, () => {}) }
+        return {
+          register: (tool: RegisteredTool) => {
+            tools.set(tool.name, tool)
+            return track('tool', tool.name, () => { tools.delete(tool.name) })
+          },
+        }
       }
       if (name === 'systemPrompt') {
         return { section: (s: { name: string }) => track('promptSection', s.name, () => {}) }
@@ -77,6 +90,7 @@ function createMockContext(options?: { settingsBase?: Record<string, unknown> })
     ctx,
     calls,
     live,
+    tools,
     fireSettings: (next) => { settingsWatch?.(next) },
     runDisposers: () => { for (const d of disposers.splice(0)) d() },
   }
@@ -120,4 +134,21 @@ test('组合行 config 关闭 zread:初始即不注册工具', () => {
   apply(mock.ctx, { zread: false })
   assert.equal(mock.live.has('tool:github_search_doc'), false)
   assert.ok(mock.live.has('searchProvider:zhipu-web-search-prime'))
+})
+
+test('畸形历史调用只降级展示，执行仍严格拒绝', async () => {
+  const mock = createMockContext()
+  apply(mock.ctx, {})
+
+  const tool = mock.tools.get('github_read_file')
+  assert.ok(tool)
+  assert.deepEqual(
+    tool.presentCall?.({ repo_name: 'vitejs/vite', file_path: 'src/index.ts' }),
+    { card: 'generic', title: 'vitejs/vite/src/index.ts', kind: 'fetch', rawInput: 'vitejs/vite src/index.ts' },
+  )
+  assert.equal(tool.presentCall?.({ file_path: 'scripts/generate-readme.mjs' }), undefined)
+  await assert.rejects(
+    tool.execute({ file_path: 'scripts/generate-readme.mjs' }, {}),
+    /repo_name must look like "owner\/repo"/,
+  )
 })

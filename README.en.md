@@ -30,7 +30,7 @@ card. The vision MCP is researched and planned — see the [roadmap](#roadmap).
   `cordis.patch.yml` points the `web` row's `searchProvider` / `fetchProvider` at this plugin.
   Model-facing tool names stay the same; only the backend changes.
 - **Repo tools registered natively** via `ctx.tools.register` with prompt guidance, generic
-  cards, and a 60s cooperative timeout.
+  cards, and a 60s cooperative timeout. Malformed or stale historical arguments degrade to a generic card during replay; actual execution remains strictly validated.
 - **Credentials**: single reference `ZAI_CODING_CN_API_KEY`, resolved in three tiers
   (DSH credentials service → environment → `~/.dsh/.credentials.yaml` direct read); the key
   never lands in config or logs.

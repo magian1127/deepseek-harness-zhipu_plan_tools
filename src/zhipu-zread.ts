@@ -90,9 +90,15 @@ function defineZreadTool(
     },
     timeoutMs: ZREAD_TOOL_TIMEOUT_MS,
     isConcurrencySafe: () => true,
+    // presenter 会在历史重放时接收已持久化的旧参数；展示失败必须降级，
+    // 不能把过期/畸形调用的参数校验异常冒泡到 api-proxy。
     presentCall: (args: unknown) => {
-      const parsed = spec.parse(args)
-      return { card: 'generic', title: parsed.title, kind: 'fetch', rawInput: parsed.rawInput }
+      try {
+        const parsed = spec.parse(args)
+        return { card: 'generic', title: parsed.title, kind: 'fetch', rawInput: parsed.rawInput }
+      } catch {
+        return undefined
+      }
     },
     async execute(args: unknown, exec: { signal?: AbortSignal }) {
       const { mcpArgs } = spec.parse(args)

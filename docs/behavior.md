@@ -37,6 +37,7 @@
 ## 边界与失败模式
 
 - **凭据缺失**：`web_search` 报结构化 unavailable 错误；`web_fetch`（若启用）同理；`github_*` 工具执行时报 `ZHIPU_CREDENTIAL_MISSING`。第一反应：确认已添加 `zai-coding-cn` 提供商，且 `ZAI_CODING_CN_API_KEY` 存在于环境变量或 `~/.dsh/.credentials.yaml`。
+- **历史工具调用参数异常**：回放旧的 `github_*` 调用时，展示层会降级为通用卡片而不抛出宿主日志；这不放宽实际执行，缺失或非 `owner/repo` 格式的 `repo_name` 仍会被严格拒绝。
 - **取消**：`exec.signal` 全程透传；DELETE 清理失败静默；abort 后不等清理。
 - **MCP 会话不复用**：每调用完整生命周期，多 ~1 RTT（留路线图优化）。
 - **webReader 正文截断** 200_000 字符（对齐 `DEFAULT_FETCH_MAX_OUTPUT_CHARS`）。

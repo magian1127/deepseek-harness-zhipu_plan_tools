@@ -13,7 +13,7 @@ export const DEFAULTS = {
   enabled: true,
   search: true,
   reader: true,
-  zread: true,
+  zread: false,
   credentialRef: 'ZAI_CODING_CN_API_KEY',
 }
 

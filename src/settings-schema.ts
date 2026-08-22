@@ -28,7 +28,7 @@ export const DEFAULT_SETTINGS: ZhipuSettings = {
   enabled: true,
   search: true,
   reader: true,
-  zread: true,
+  zread: false,
   credentialRef: DEFAULT_CREDENTIAL_REF,
 }
 

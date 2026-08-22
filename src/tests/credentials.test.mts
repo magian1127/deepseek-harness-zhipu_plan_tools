@@ -31,7 +31,7 @@ test('resolveApiKey 三层:credentials 服务优先', async () => {
   const home = mkdtempSync(join(tmpdir(), 'zhipu-cred-'))
   try {
     mkdirSync(join(home), { recursive: true })
-    writeFileSync(join(home, '.credentials.yaml'), 'OTHER: x\nZHIPU_TEST_KEY: file-value\n', 'utf8')
+    writeFileSync(join(home, '.credentials.yaml'), 'version: 1\nrefs:\n  OTHER: x\n  ZHIPU_TEST_KEY: "file-value"\n', 'utf8')
     process.env.DSH_HOME = home
     delete process.env.ZHIPU_TEST_KEY
 
@@ -68,7 +68,7 @@ test('credentialAvailable:env 或文件命中即 true(不发网络)', () => {
   const home = mkdtempSync(join(tmpdir(), 'zhipu-avail-'))
   try {
     process.env.DSH_HOME = home
-    writeFileSync(join(home, '.credentials.yaml'), 'ZHIPU_TEST_KEY: v\n', 'utf8')
+    writeFileSync(join(home, '.credentials.yaml'), 'version: 1\nrefs:\n  ZHIPU_TEST_KEY: v\n', 'utf8')
     delete process.env.ZHIPU_TEST_KEY
     assert.equal(credentialAvailable('ZHIPU_TEST_KEY'), true)
     assert.equal(credentialAvailable('NOT_PRESENT'), false)

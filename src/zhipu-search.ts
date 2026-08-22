@@ -37,7 +37,7 @@ export function installZhipuSearchProvider(ctx: HostContext, getSettings: Settin
   const provider: WebSearchProviderShape = {
     id: SEARCH_PROVIDER_ID,
     available(): boolean {
-      // 本地存在性检查,不发网络请求:设置开启且凭据本地可见才可用。
+      // Web seam 要求 available() 同步且不得网络请求;因此这里使用本地兼容检查。
       const settings = getSettings()
       return settings.enabled && settings.search && credentialAvailable(settings.credentialRef)
     },

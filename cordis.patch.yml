@@ -23,4 +23,4 @@
     fetchProvider: zhipu-web-reader
 - insert:
     - id: dsh-zhipu
-      name: deepseek-harness-zhipu_plan_tools
+      name: 'deepseek-harness-zhipu_plan_tools'

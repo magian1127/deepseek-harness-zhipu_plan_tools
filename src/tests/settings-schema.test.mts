@@ -27,9 +27,9 @@ test('host 与 client 两侧默认值保持一致(有意双份,值必须同步)'
 test('client normalized/sameSettings/validDraft', () => {
   const base = normalized({})
   assert.deepEqual(base, DEFAULTS)
-  const changed = normalized({ zread: false })
+  const changed = normalized({ zread: true })
   assert.equal(sameSettings(base, changed), false)
-  assert.equal(sameSettings(changed, normalized({ zread: false })), true)
+  assert.equal(sameSettings(changed, normalized({ zread: true })), true)
   assert.equal(validDraft(normalized({ credentialRef: 'MY_KEY_2' })), true)
   // normalized 只回退空值;'2BAD' 非空会原样保留,由 validDraft 拦截。
   assert.equal(validDraft(normalized({ credentialRef: '2BAD' })), false)

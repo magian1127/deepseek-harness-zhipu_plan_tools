@@ -37,12 +37,31 @@ function credentialInEnvironment(ref: string): boolean {
   return value !== undefined && value.length > 0
 }
 
-/** 凭据文件是否存有该键(同步正则探测,不解析完整 YAML;格式坑用同正则验证)。 */
+/** 凭据文件是否存有该键(只读取 refs 段,支持 YAML 常见标量写法)。 */
 function credentialInFile(ref: string, home: string = dshHome()): string | undefined {
   try {
-    const text = readFileSync(join(home, CREDENTIALS_FILE), 'utf8')
-    const match = new RegExp(`^${ref}:\\s*(\\S+)`, 'm').exec(text)
-    return match === null ? undefined : match[1]
+    const lines = readFileSync(join(home, CREDENTIALS_FILE), 'utf8').split(/\r?\n/)
+    let inRefs = false
+    for (const line of lines) {
+      if (!inRefs) {
+        if (/^refs:\s*(?:#.*)?$/.test(line)) inRefs = true
+        continue
+      }
+      // refs 段结束于下一个顶层 YAML 键。
+      if (line.length > 0 && !/^\s/.test(line)) break
+      const match = /^\s+([A-Za-z_][A-Za-z0-9_-]*):\s*(.*?)\s*$/.exec(line)
+      if (match === null || match[1] !== ref) continue
+      let value = match[2]
+      if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+        try { value = JSON.parse(value) as string } catch { value = value.slice(1, -1) }
+      } else if (value.startsWith("'") && value.endsWith("'") && value.length >= 2) {
+        value = value.slice(1, -1).replace(/''/g, "'")
+      } else {
+        value = value.replace(/\s+#.*$/, '').trim()
+      }
+      return value.length > 0 ? value : undefined
+    }
+    return undefined
   } catch {
     return undefined
   }

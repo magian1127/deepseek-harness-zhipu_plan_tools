@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 联网搜索 | 开 | 内置 `web_search` 后端替换为智谱联网搜索 MCP（`web_search_prime`），中英文源混合返回 |
 | 网页读取 | 开（跟随 `web_fetch` 开关） | 内置 `web_fetch` 后端替换为智谱网页读取 MCP（`webReader`，markdown 正文）；DSH 默认关闭 `web_fetch`，部署启用后自动生效 |
-| 开源仓库 | 开 | 新增 `github_search_doc` / `github_get_repo_structure` / `github_read_file` 三个模型工具 |
+| 开源仓库 | 关 | 默认不注册；开启后新增 `github_search_doc` / `github_get_repo_structure` / `github_read_file` 三个模型工具 |
 | 设置卡片 | — | DSH 设置 → 插件设置：折叠卡片实时开关各项、配置凭据引用名，中英双语随界面切换 |
 
 ## 设置语义
@@ -20,7 +20,7 @@
 | `enabled` | bool | `true` | 总开关：关闭 = 搜索/读取后端停用、仓库工具卸载、提示移除；设置入口保留 |
 | `search` | bool | `true` | 是否接管 `web_search` 后端。**停用而非回退**——关闭后 `web_search` 报结构化错误；彻底恢复内置需删 mount 行的 `searchProvider` 指向 |
 | `reader` | bool | `true` | 是否接管 `web_fetch` 后端，语义同 `search` |
-| `zread` | bool | `true` | 是否注册 3 个 `github_*` 工具。**可干净装卸**——关闭后工具立即从模型工具目录消失 |
+| `zread` | bool | `false` | 是否注册 3 个 `github_*` 工具。默认关闭；开启后可干净装卸，关闭后工具立即从模型工具目录消失 |
 | `credentialRef` | string | `ZAI_CODING_CN_API_KEY` | 智谱 Coding Plan API Key 的凭据引用名 |
 
 ## 凭据与安全

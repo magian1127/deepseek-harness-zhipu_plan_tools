@@ -21,7 +21,7 @@ card. The vision MCP is researched and planned — see the [roadmap](#roadmap).
 | --- | --- | --- |
 | Web search | on | Built-in `web_search` backend replaced with Zhipu search MCP (`web_search_prime`) |
 | Web reader | on (follows web_fetch) | Built-in `web_fetch` backend replaced with Zhipu reader MCP (`webReader`, markdown output, better than local HTML conversion); DSH keeps `web_fetch` off by default — picks this up once enabled |
-| Repo tools | on | Adds `github_search_doc`, `github_get_repo_structure`, `github_read_file` |
+| Repo tools | off | Adds `github_search_doc`, `github_get_repo_structure`, `github_read_file`; enable them from the settings card when needed |
 | Settings card | — | DSH settings → plugins: collapsible card with live toggles and credential reference, bilingual |
 
 ### How it works
@@ -114,7 +114,7 @@ stays dormant.
 - **`search` / `reader` disable, not revert**: when off, `web_search` / `web_fetch` report
   an unavailable backend; fully restoring the built-ins requires removing the
   `searchProvider` / `fetchProvider` pointers from the mount row.
-- **`zread` unregisters cleanly**: tools vanish from the model tool catalog immediately.
+- **`zread` unregisters cleanly**: off by default; enable it to register the three repo tools, or disable it to remove them immediately from the model tool catalog.
 - No telemetry, no extra network endpoints beyond the official Zhipu MCP endpoints.
 
 ## Uninstall

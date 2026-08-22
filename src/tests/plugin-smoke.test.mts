@@ -1,6 +1,6 @@
 // host 装配冒烟(假 ctx,playbook"假 ctx 单测"手法):
 // apply → providers/工具/提示词注册齐全;fiber 清理 → 全部可逆;
-// settings watch → zread 开关动态装卸。
+// settings watch → zread 开关动态装卸;默认关闭。
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { apply } from '../index.js'
@@ -96,16 +96,14 @@ function createMockContext(options?: { settingsBase?: Record<string, unknown> })
   }
 }
 
-test('apply 装配:providers + 3 工具 + 3 提示词;清理全部可逆', () => {
+test('apply 装配:providers 常驻;zread 默认关闭;清理全部可逆', () => {
   const mock = createMockContext()
   apply(mock.ctx, {})
 
   assert.ok(mock.live.has('searchProvider:zhipu-web-search-prime'))
   assert.ok(mock.live.has('fetchProvider:zhipu-web-reader'))
-  assert.ok(mock.live.has('tool:github_search_doc'))
-  assert.ok(mock.live.has('tool:github_get_repo_structure'))
-  assert.ok(mock.live.has('tool:github_read_file'))
-  assert.ok(mock.live.has('promptSection:tool:github_search_doc'))
+  assert.equal(mock.live.has('tool:github_search_doc'), false)
+  assert.equal(mock.live.has('promptSection:tool:github_search_doc'), false)
 
   mock.runDisposers()
   assert.equal(mock.live.size, 0)
@@ -113,7 +111,7 @@ test('apply 装配:providers + 3 工具 + 3 提示词;清理全部可逆', () =>
 
 test('settings watch:zread 关闭即卸载工具与提示词,providers 常驻', () => {
   const mock = createMockContext({ settingsBase: {} })
-  apply(mock.ctx, {})
+  apply(mock.ctx, { zread: true })
   assert.ok(mock.live.has('tool:github_search_doc'))
 
   mock.fireSettings({ zread: false })
@@ -138,7 +136,7 @@ test('组合行 config 关闭 zread:初始即不注册工具', () => {
 
 test('畸形历史调用只降级展示，执行仍严格拒绝', async () => {
   const mock = createMockContext()
-  apply(mock.ctx, {})
+  apply(mock.ctx, { zread: true })
 
   const tool = mock.tools.get('github_read_file')
   assert.ok(tool)

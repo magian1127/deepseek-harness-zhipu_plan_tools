@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | 联网搜索 | 开 | 内置 `web_search` 后端替换为智谱联网搜索 MCP(`web_search_prime`),中英文源混合返回 |
 | 网页读取 | 开(跟随 web_fetch 开关) | 内置 `web_fetch` 后端替换为智谱网页读取 MCP(`webReader`),直接返回 markdown 正文(优于本地 HTML 转换);DSH 默认关闭 `web_fetch`,部署启用后自动生效 |
-| 开源仓库 | 开 | 新增 `github_search_doc`(搜仓库文档/issue/commit)、`github_get_repo_structure`(目录结构)、`github_read_file`(读文件)三个模型工具 |
+| 开源仓库 | 关 | 新增 `github_search_doc`(搜仓库文档/issue/commit)、`github_get_repo_structure`(目录结构)、`github_read_file`(读文件)三个模型工具；需要时可在设置卡片中开启 |
 | 设置卡片 | — | DSH 设置 → 插件设置:折叠卡片实时开关各项、配置凭据引用名,中英双语随界面切换 |
 
 ### 工作机制
@@ -107,7 +107,7 @@ DSH 预设默认关闭 `web_fetch`(`tool-web` 行 `fetch: false`),本插件不�
 - **总开关 `enabled`**:关闭 = 搜索/读取后端停用、仓库工具卸载、提示移除;设置入口保留。
 - **`search` / `reader` 是停用而非回退**:关闭后 `web_search` / `web_fetch` 报"后端不可用"
   结构化错误;彻底恢复内置后端需从挂载行删除 `searchProvider` / `fetchProvider` 指向。
-- **`zread` 可干净装卸**:关闭后工具立即从模型工具目录消失。
+- **`zread` 可干净装卸**:默认关闭；开启后注册三个仓库工具，关闭后工具立即从模型工具目录消失。
 - 不上传数据、不做遥测、不注册额外网络端点(仅智谱官方 MCP 端点)。
 
 ## 卸载

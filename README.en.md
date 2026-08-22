@@ -29,11 +29,13 @@ card. The vision MCP is researched and planned — see the [roadmap](#roadmap).
 - **Search/reader as provider swaps**: providers registered on the DSH `web` service;
   `cordis.patch.yml` points the `web` row's `searchProvider` / `fetchProvider` at this plugin.
   Model-facing tool names stay the same; only the backend changes.
+- **Search queries should be narrow and precise**: the plugin injects guidance telling the model to formulate one clear, verifiable target per query, with concrete entities/topics, events or metrics, and necessary time, region, version, or source qualifiers. Overview requests should be split by topic instead of combining unrelated subjects. The plugin does not silently rewrite the original query. If Zhipu rejects an overly broad search, it returns the fixed short error `ZHIPU_CONTENT_FILTERED`: “Zhipu detected a sensitive term and refused this output. Do not make the search scope overly broad; narrow the request to one clear target and add concrete entity, time, region, metric, or source qualifiers.”
 - **Repo tools registered natively** via `ctx.tools.register` with prompt guidance, generic
   cards, and a 60s cooperative timeout. Malformed or stale historical arguments degrade to a generic card during replay; actual execution remains strictly validated.
 - **Credentials**: single reference `ZAI_CODING_CN_API_KEY`, resolved in three tiers
   (DSH credentials service → environment → `~/.dsh/.credentials.yaml` direct read); the key
   never lands in config or logs.
+- Search specificity guidance and the `ZHIPU_CONTENT_FILTERED` behavior are documented in [Behavior](docs/behavior.md); filtered requests are not retried or routed to another backend.
 - **Hot updates**: self-watching hot reload on the host artifact (edit `src/` →
   `npm run build` → live, no restart); settings apply live.
 

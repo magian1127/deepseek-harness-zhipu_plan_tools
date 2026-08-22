@@ -15,11 +15,11 @@
 
 ## 模块契约
 
-- **mcp-http.ts**：`createMcpSession(endpoint, apiKey)` → `{ call(tool, args, signal) }`，内部 `initialize`（响应头取 `Mcp-Session-Id`）→ `notifications/initialized` → `tools/call` → `DELETE`（5s 短超时、尽力而为、abort 后不等待）；SSE 帧解析取首个含匹配 id 的 `data:` JSON；RPC `error`/`isError:true` → 稳定 code 的 ZhipuError。
-- **zhipu-search.ts**：provider id `zhipu-web-search-prime`；`search()` 调 `web_search_prime {search_query}`，映射 `{link,title,content,publishedAt}` → `WebSearchSource{url,title,snippet,publishedAt}`；maxResults 由 seam 截断。
-- **zhipu-reader.ts**：provider id `zhipu-web-reader`；`fetch(url)` 调 `webReader {url, return_format:'markdown', retain_images:false, timeout:20}`，双层 parse 后取 `content`，超 200_000 字符截断置 `truncated:true`；`isError`/解析失败 → ZhipuError(`WEB_PROVIDER_ERROR`)。
-- **zhipu-zread.ts**：3 个 defineTool，timeoutMs 60_000；参数说明显式写明 `repo_name` 必须 `owner/repo`；`github_read_file` / `github_get_repo_structure` 结果为文本直接返回；`github_search_doc` 的 `language` 参数可选；`isConcurrencySafe: () => true`；`presentCall` generic 卡（title=repo_name 等关键参数）。
-- **systemPrompt.section**：为 3 个 `github_*` 工具各加一行简短指引（强调 `repo_name` 传 `owner/repo`，order 110+）；不覆盖官方 `web_search`/`web_fetch` section。
+- **mcp-http.ts**：`createMcpSession(endpoint, apiKey)` → `{ call(tool, args, signal) }`，内部 `initialize`（响应头取 `Mcp-Session-Id`）→ `notifications/initialized` → `tools/call` → `DELETE`（5s 短超时、尽力而为、abort 后不等待）；SSE 帧解析取首个含匹配 id 的 `data:` JSON；RPC `error`/`isError:true` → 稳定 code 的 ZhipuError；上游包含结构化 `contentFilter` 时归类为 `ZHIPU_CONTENT_FILTERED`，返回固定短提示，不透传上游长错误。
+- **zhipu-search.ts**：provider id `zhipu-web-search-prime`；`search()` 原样调 `web_search_prime {search_query}`（不静默改写/硬拒绝查询），映射 `{link,title,content,publishedAt}` → `WebSearchSource{url,title,snippet,publishedAt}`；maxResults 由 seam 截断。
+- **zhipu-reader.ts**：provider id `zhipu-web-reader`；`fetch(url)` 调 `webReader {url, return_format:'markdown', retain_images:false, timeout:20}`，双层 parse 后取 `content`，超 200_000 字符截断置 `truncated:true`；普通 `isError`/解析失败 → ZhipuError(`WEB_PROVIDER_ERROR`)，结构化 `contentFilter` → `ZHIPU_CONTENT_FILTERED`。
+- **zhipu-zread.ts**：3 个 defineTool，timeoutMs 60_000；参数说明显式写明 `repo_name` 必须 `owner/repo`；`github_read_file` / `github_get_repo_structure` 结果为文本直接返回；`github_search_doc` 的 `language` 参数可选；`isConcurrencySafe: () => true`；`presentCall` generic 卡（title=repo_name 等关键参数）；MCP 内容过滤错误沿用 `ZHIPU_CONTENT_FILTERED`。
+- **systemPrompt.section**：为 3 个 `github_*` 工具各加一行简短指引（强调 `repo_name` 传 `owner/repo`，order 110+），另加 `tool:web_search:query-guidance` 指引模型把搜索目标收窄、补充实体/时间/来源等限定；不覆盖官方 `tool:web_search`/`web_fetch` section。
 - **cordis.patch.yml**：
 
   ```yaml

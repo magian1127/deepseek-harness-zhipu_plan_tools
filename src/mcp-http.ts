@@ -12,7 +12,7 @@
  * (多 ~1 RTT 可接受,复用留路线图)。
  */
 import { MCP_TERMINATE_TIMEOUT_MS, MCP_TIMEOUT_MS } from './constants.js'
-import { ZhipuError, ZHIPU_PROVIDER_ERROR_CODE, isAbortError } from './errors.js'
+import { ZhipuError, ZHIPU_CONTENT_FILTERED_CODE, ZHIPU_PROVIDER_ERROR_CODE, isAbortError } from './errors.js'
 
 /** 一次会话的对外接口。 */
 export interface McpSession {
@@ -27,6 +27,24 @@ interface HttpOptions {
   timeoutMs?: number
   /** User-Agent 标识。 */
   userAgent?: string
+}
+
+/** 检测上游的内容安全拒绝标记。 */
+function containsContentFilterMarker(value: unknown): boolean {
+  if (typeof value === 'string') return /content[\s_-]?filter/i.test(value)
+  if (Array.isArray(value)) return value.some((item) => containsContentFilterMarker(item))
+  if (value === null || typeof value !== 'object') return false
+  return Object.entries(value as Record<string, unknown>).some(([key, nested]) =>
+    /content[\s_-]?filter/i.test(key) || containsContentFilterMarker(nested),
+  )
+}
+
+/** 内容过滤错误:固定短提示,避免把上游长错误传给模型。 */
+function contentFilteredError(): ZhipuError {
+  return new ZhipuError(
+    `[${ZHIPU_CONTENT_FILTERED_CODE}] 智谱查询到敏感词拒绝本次输出。搜索范围不要过于泛化，将请求收窄为一个明确的目标，补充具体实体、时间、地区、指标或来源，用客观、精确的查询重试。`,
+    ZHIPU_CONTENT_FILTERED_CODE,
+  )
 }
 
 /** 单次 HTTP 请求:组合外部 signal 与本地超时,任一触发即中止;finally 清理。 */
@@ -60,6 +78,7 @@ async function request(
     })
     if (!response.ok) {
       const text = await response.text().catch(() => '')
+      if (containsContentFilterMarker(text)) throw contentFilteredError()
       throw new ZhipuError(
         `[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP HTTP ${response.status}: ${text.slice(0, 300)}`,
         ZHIPU_PROVIDER_ERROR_CODE,
@@ -69,6 +88,7 @@ async function request(
     return { text, sessionId: response.headers.get('mcp-session-id') ?? undefined }
   } catch (error: unknown) {
     if (signal?.aborted === true || isAbortError(error)) throw error
+    if (error instanceof ZhipuError && error.code === ZHIPU_CONTENT_FILTERED_CODE) throw error
     const message = error instanceof Error ? error.message : String(error)
     throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP 请求失败: ${message}`, ZHIPU_PROVIDER_ERROR_CODE, { cause: error })
   } finally {
@@ -114,6 +134,7 @@ function frameResult(frame: any | undefined, context: string): any {
     throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: 无响应`, ZHIPU_PROVIDER_ERROR_CODE)
   }
   if (frame.error !== undefined) {
+    if (containsContentFilterMarker(frame.error)) throw contentFilteredError()
     throw new ZhipuError(
       `[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${JSON.stringify(frame.error).slice(0, 300)}`,
       ZHIPU_PROVIDER_ERROR_CODE,
@@ -121,9 +142,11 @@ function frameResult(frame: any | undefined, context: string): any {
   }
   const result = frame.result
   if (result === undefined) {
+    if (containsContentFilterMarker(frame)) throw contentFilteredError()
     throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${JSON.stringify(frame).slice(0, 300)}`, ZHIPU_PROVIDER_ERROR_CODE)
   }
   if (result.isError === true) {
+    if (containsContentFilterMarker(result)) throw contentFilteredError()
     const blocks = Array.isArray(result.content) ? result.content : []
     const msg = blocks.map((b: any) => (b === null || b === undefined ? '' : String(b.text ?? ''))).filter(Boolean).join(' ')
     throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${msg || '未知错误'}`, ZHIPU_PROVIDER_ERROR_CODE)
@@ -155,6 +178,7 @@ export async function createMcpSession(
       const init = await request(endpoint, apiKey, undefined, 'POST', initBody, options, signal)
       const sessionId = init.sessionId
       if (sessionId === undefined) {
+        if (containsContentFilterMarker(init.text)) throw contentFilteredError()
         throw new ZhipuError(
           `[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP 初始化失败: ${init.text.slice(0, 300)}`,
           ZHIPU_PROVIDER_ERROR_CODE,
@@ -175,7 +199,10 @@ export async function createMcpSession(
           params: { name: tool, arguments: args },
         })
         const outcome = await request(endpoint, apiKey, sessionId, 'POST', callBody, options, signal)
-        return frameResult(pickFrame(parseRpcFrames(outcome.text), 2), `智谱 MCP ${tool} 调用失败`)
+        const frames = parseRpcFrames(outcome.text)
+        const frame = pickFrame(frames, 2)
+        if (frame === undefined && containsContentFilterMarker(outcome.text)) throw contentFilteredError()
+        return frameResult(frame, `智谱 MCP ${tool} 调用失败`)
       } finally {
         // 4) DELETE 终止:尽力而为;已中止时不再等待清理(否则推迟中止结果)。
         const aborted = signal !== undefined && signal.aborted

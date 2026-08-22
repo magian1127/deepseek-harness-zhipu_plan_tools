@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { apply } from '../index.js'
 import type { Disposer, HostContext } from '../types.js'
 
-interface MockCall { kind: string; idOrName: string }
+interface MockCall { kind: string; idOrName: string; text?: string }
 
 interface RegisteredTool {
   readonly name: string
@@ -28,8 +28,8 @@ function createMockContext(options?: { settingsBase?: Record<string, unknown> })
   const disposers: Array<() => void> = []
   let settingsWatch: ((next: Record<string, unknown>) => void) | undefined
 
-  const track = (kind: string, idOrName: string, dispose: () => void): Disposer => {
-    calls.push({ kind, idOrName })
+  const track = (kind: string, idOrName: string, dispose: () => void, text?: string): Disposer => {
+    calls.push({ kind, idOrName, ...(text === undefined ? {} : { text }) })
     live.add(`${kind}:${idOrName}`)
     return () => {
       live.delete(`${kind}:${idOrName}`)
@@ -54,7 +54,7 @@ function createMockContext(options?: { settingsBase?: Record<string, unknown> })
         }
       }
       if (name === 'systemPrompt') {
-        return { section: (s: { name: string }) => track('promptSection', s.name, () => {}) }
+        return { section: (s: { name: string; text?: string }) => track('promptSection', s.name, () => {}, s.text) }
       }
       if (name === 'settings') {
         const userOverride = options?.settingsBase ?? {}
@@ -104,9 +104,18 @@ test('apply 装配:providers 常驻;zread 默认关闭;清理全部可逆', () =
   assert.ok(mock.live.has('fetchProvider:zhipu-web-reader'))
   assert.equal(mock.live.has('tool:github_search_doc'), false)
   assert.equal(mock.live.has('promptSection:tool:github_search_doc'), false)
+  const guidance = mock.calls.find((call) => call.idOrName === 'tool:web_search:query-guidance')
+  assert.ok(guidance)
+  assert.match(guidance.text ?? '', /明确、可验证的目标/)
+  assert.match(guidance.text ?? '', /具体实体或主题/)
+  assert.match(guidance.text ?? '', /时间、地区、版本或来源限定/)
+  assert.match(guidance.text ?? '', /过于泛化或范围过大/)
+  assert.match(guidance.text ?? '', /多个无关问题/)
+  assert.ok(!mock.live.has('promptSection:tool:web_search'))
 
   mock.runDisposers()
   assert.equal(mock.live.size, 0)
+  assert.equal(mock.calls.some((call) => call.idOrName === 'tool:web_search:query-guidance'), true)
 })
 
 test('settings watch:zread 关闭即卸载工具与提示词,providers 常驻', () => {
@@ -125,6 +134,21 @@ test('settings watch:zread 关闭即卸载工具与提示词,providers 常驻', 
   mock.fireSettings({ enabled: false })
   assert.equal(mock.live.has('tool:github_search_doc'), false)
   assert.ok(mock.live.has('searchProvider:zhipu-web-search-prime'))
+})
+
+
+test('search 关闭时移除查询指引,重新开启时恢复', () => {
+  const mock = createMockContext()
+  apply(mock.ctx, { search: true })
+  assert.ok(mock.live.has('promptSection:tool:web_search:query-guidance'))
+
+  mock.fireSettings({ search: false })
+  assert.equal(mock.live.has('promptSection:tool:web_search:query-guidance'), false)
+  assert.ok(mock.live.has('searchProvider:zhipu-web-search-prime'))
+
+  mock.fireSettings({ search: true })
+  assert.ok(mock.live.has('promptSection:tool:web_search:query-guidance'))
+  mock.runDisposers()
 })
 
 test('组合行 config 关闭 zread:初始即不注册工具', () => {

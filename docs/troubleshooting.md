@@ -10,6 +10,7 @@
 | 工具名/schema 改了但模型看到的是旧的 | ① `Tool.listTools`（inspect 运行时目录）是唯一权威——磁盘 `lib/index.js` 是新代码 ≠ 进程生效，进程跑的是冷启动旧 fiber；② 查 `hmr.configs` 是否含本插件 `lib/index.js` 真实路径 = 自监视是否挂上；③ 查 `hmr.stashed` 是否被塞入 = 变更是否走到「暂存 → partialReload」。都没有 → 自监视空转，见下；手动补救：一次性动态插件 `hmr.stashed.add(fileUrl)` + `hmr.partialReload()` |
 | 自监视热重载不生效 | 看插件日志是否「hmr 服务不可用 / 缺少 registerConfig」；确认 `ctx.effect` 的 cleanup 是**返回值**而非回调体语句（cleanup 写在回调体会注册即关闭 watcher） |
 | `web_search` 报后端不可用 | 查错误码：`UNAVAILABLE` → 凭据本地检查失败；`CONFIGURED_MISSING` → provider 未注册（插件行没挂上/被卸载） |
+| `web_search` 报 `ZHIPU_CONTENT_FILTERED` | 智谱拒绝了过于泛化或范围过大的查询；上游结果可能表现为过滤错误，也可能偶发返回 `No results found` | 使用一个明确目标，并补充具体实体、时间范围、地区、指标或来源；插件返回固定短提示，不会自动改写或重试 |
 | 报 `ZHIPU_CREDENTIAL_MISSING` / `WEB_PROVIDER_CREDENTIAL_MISSING` | ① 确认 DSH 设置 → 模型已添加 `zai-coding-cn` 提供商（API 密钥留空 = 环境认证）；② 确认 `ZAI_CODING_CN_API_KEY` 在环境变量或 `~/.dsh/.credentials.yaml`；③ 若用别的变量名，把设置卡片 `credentialRef` 改成对应名字 |
 | 设置卡片不出现 | client.js 端点 404（loader 的 name 必须是包名）；或 DSH < `0.1.0-rc.7`（无 `exposeToClients`）；或 client-modules 负面缓存（结构改错后被永久跳过） |
 | 双实例/重复注册 | 挂载行 id 复用导致 loader 启动失败；或依赖幂等保护兜底 |

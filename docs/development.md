@@ -61,6 +61,7 @@
 6. **动态插件沙箱无 `require`、fs 是包装 API**：主进程内观测优先走 webServer 路由 + 外部 HTTP 读取。
 7. **`ctx.effect` 的 cleanup 必须写成回调体的「返回值」，不是回调体语句**：`ctx.effect(cb)` 会立即调用 `cb` 并把它**返回值**当作卸载 disposer。若把清理动作直接写在回调体内，会在注册时立即执行——本项目 `self-hot-reload.ts` 曾因此「注册完 watcher 就被自己关闭」，自监视空转。正确写法：`ctx.effect(() => { return () => { …清理… } })`。
 8. **动态 Cordis 插件里 `throw` 会崩掉宿主进程**：定时器/异步回调里的未捕获异常会逃逸到父进程事件循环。诊断探针永远不要用 `throw` 传结果——改走 `console.log`/返回值/落盘日志。
+9. **智谱搜索的宽泛查询行为可能不稳定**：同一条范围过大的实时新闻查询，可能返回 `contentFilter` 拒绝，也可能返回 `No results found`；这两种结果都不能据此判断 MCP 协议或插件参数错误。provider 保持查询原样，不静默改写、不自动重试；检测到结构化 `contentFilter` 时统一映射为 `ZHIPU_CONTENT_FILTERED`，对模型返回固定短提示，系统提示负责引导模型补充实体、时间、地区、指标或来源等限定。
 
 ### 热重载与运行时
 

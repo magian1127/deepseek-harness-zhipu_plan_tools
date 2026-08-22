@@ -40,6 +40,9 @@ const ZREAD_PROMPT_SECTIONS: Array<{ name: string; text: string }> = [
   },
 ]
 
+/** web_search 查询编写指引:要求模型先收窄目标,避免提交过于泛化的范围请求。 */
+const WEB_SEARCH_QUERY_GUIDANCE = '使用 web_search 前，先把问题收窄为一个明确、可验证的目标。每条查询应尽量包含具体实体或主题、要查的事件/指标，以及必要的时间、地区、版本或来源限定；优先使用少量但有信息量的词。不要直接提交过于泛化或范围过大的查询（例如“AI”“最新新闻”“科技发展”），也不要把多个无关问题拼在一次搜索中。用户要求概览时，按明确主题或类别拆分查询，并为每个查询补充时间范围和关注点；先搜索，再根据结果用更具体的查询迭代。保留用户原意，只补充必要限定，不要把具体问题改写成泛化主题。'
+
 export function apply(ctx: HostContext, config: Record<string, unknown> = {}): void {
   // 基线:组合行 config(归一化);settings 就绪后由 watch 覆盖。
   let current: ZhipuSettings = normalizeSettings(config)
@@ -51,10 +54,33 @@ export function apply(ctx: HostContext, config: Record<string, unknown> = {}): v
   const readerDispose = installZhipuReaderProvider(ctx, () => current)
   if (readerDispose !== undefined) providerDisposers.push(readerDispose)
 
-  // 2) github_* 工具 + 提示词:按设置动态装卸。
+  // 2) web_search 查询指引与 github_* 工具 + 提示词:按设置动态装卸。
   let toolsDispose: Disposer | undefined
   const promptDisposers: Array<() => void> = []
   const systemPrompt = ctx.get('systemPrompt') as SystemPromptService | undefined | null
+
+  // 搜索查询指引随总开关与 search 接管开关实时装卸,不改写 provider 收到的查询。
+  let searchPromptDispose: Disposer | undefined
+
+  function mountSearchGuidance(): void {
+    if (searchPromptDispose !== undefined || systemPrompt === undefined || systemPrompt === null) return
+    try {
+      searchPromptDispose = systemPrompt.section({
+        name: 'tool:web_search:query-guidance',
+        order: 111,
+        text: WEB_SEARCH_QUERY_GUIDANCE,
+      })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (!/duplicate|already/i.test(message)) throw error
+    }
+  }
+
+  function unmountSearchGuidance(): void {
+    if (searchPromptDispose === undefined) return
+    searchPromptDispose()
+    searchPromptDispose = undefined
+  }
 
   function mountZread(): void {
     if (toolsDispose !== undefined) return
@@ -80,6 +106,8 @@ export function apply(ctx: HostContext, config: Record<string, unknown> = {}): v
   }
 
   function refresh(): void {
+    if (current.enabled && current.search) mountSearchGuidance()
+    else unmountSearchGuidance()
     if (current.enabled && current.zread) mountZread()
     else unmountZread()
   }
@@ -123,6 +151,7 @@ export function apply(ctx: HostContext, config: Record<string, unknown> = {}): v
   // 4) fiber 卸载:清理全部注册(side effects 可逆,AGENTS.md 约束 9)。
   ctx.effect(() => {
     return () => {
+      unmountSearchGuidance()
       unmountZread()
       for (const dispose of providerDisposers.splice(0)) dispose()
     }

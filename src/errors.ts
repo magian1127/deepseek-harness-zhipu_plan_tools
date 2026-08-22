@@ -1,7 +1,7 @@
 /**
  * 稳定错误类型:与官方 HarnessError(@deepseek-ai/dsh-llm)的运行时形状
  * 同构 —— `name`、`code`、`cause`。零依赖、不继承官方类;message 携带
- * `[CODE]` 前缀,保证失败类别对模型、日志与排查可见(沿 ZhiPu_web_search
+ * message 携带 `[CODE]` 前缀,保证失败类别对模型、日志与排查可见(沿 ZhiPu_web_search
  * 的约定,官方工具层按 instanceof HarnessError 提取结构化信息,本包以
  * 形状同构兜底)。
  */
@@ -14,6 +14,9 @@ export const WEB_PROVIDER_CREDENTIAL_MISSING_CODE = 'WEB_PROVIDER_CREDENTIAL_MIS
 /** 本插件自有错误码(工具侧 / 通用)。 */
 export const ZHIPU_ABORTED_CODE = 'ZHIPU_ABORTED'
 export const ZHIPU_PROVIDER_ERROR_CODE = 'ZHIPU_PROVIDER_ERROR'
+
+/** 智谱 MCP 上游内容安全检查拒绝请求。 */
+export const ZHIPU_CONTENT_FILTERED_CODE = 'ZHIPU_CONTENT_FILTERED'
 export const ZHIPU_CREDENTIAL_MISSING_CODE = 'ZHIPU_CREDENTIAL_MISSING'
 export const ZHIPU_DISABLED_CODE = 'ZHIPU_DISABLED'
 

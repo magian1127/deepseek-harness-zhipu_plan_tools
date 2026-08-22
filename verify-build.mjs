@@ -29,7 +29,7 @@ for (const artifact of artifacts) {
 console.log('[verify-build] 语法检查')
 for (const file of ['lib/index.js', 'lib/client.js', 'bin/dsh-zhipu.mjs', 'bin/cli/main.mjs', 'bin/patch-row.mjs']) {
   if (!existsSync(join(root, file))) continue
-  const res = spawnSync(process.execPath, ['--check', join(root, file)], { stdio: 'pipe' })
+  const res = spawnSync(process.execPath, ['--check', join(root, file)], { stdio: 'inherit' })
   check(`node --check ${file}`, res.status === 0)
 }
 
@@ -40,8 +40,9 @@ check('包 id', /id:\s*['"]deepseek-harness-zhipu_plan_tools['"]/.test(clientTex
 check('无 ESM export 语句(顶层)', !/^export\s/m.test(clientText) || clientText.includes('__ModuleLoader__'))
 
 console.log('[verify-build] CLI usage 冒烟(退出码 2)')
-const usage = spawnSync(process.execPath, [join(root, 'bin/dsh-zhipu.mjs')], { stdio: 'pipe' })
-check('无参数退出码 2 且打印用法', usage.status === 2 && String(usage.stdout).includes('用法'))
+const usage = spawnSync(process.execPath, [join(root, 'bin/dsh-zhipu.mjs')], { stdio: 'inherit' })
+const cliText = readFileSync(join(root, 'bin/cli/main.mjs'), 'utf8')
+check('无参数退出码 2 且打印用法', usage.status === 2 && cliText.includes('用法'))
 
 if (failed > 0) {
   console.error(`[verify-build] ${failed} 项失败`)

@@ -29,7 +29,6 @@
 - **搜索/读取 = provider 替换**:注册到 DSH `web` 服务的 provider,由 `cordis.patch.yml`
   把 `web` 行的 `searchProvider` / `fetchProvider` 指向本插件;模型看到的工具名不变
   (`web_search` / `web_fetch`),后端换成智谱。
-- **搜索查询需先收窄**：插件会向模型注入查询指引。每条查询应围绕一个明确、可验证的目标，补充具体实体/主题、事件或指标，以及必要的时间、地区、版本或来源限定；概览类请求按主题拆分，不把多个无关问题拼成一个范围过大的查询。插件不静默改写用户的原始查询。智谱 MCP 若拒绝过于泛化的搜索，会返回固定短错误 `ZHIPU_CONTENT_FILTERED`：“智谱查询到敏感词拒绝本次输出。搜索范围不要过于泛化，将请求收窄为一个明确的目标，补充具体实体、时间、地区、指标或来源，用客观、精确的查询重试。”
 - **仓库工具 = 原生注册**:三个 `github_*` 工具经 `ctx.tools.register` 注册,带系统提示
   指引与通用卡片,60 秒协作超时；历史中的过期或畸形参数仅降级为通用卡片,不影响会话重放,实际执行仍严格校验参数。
 - **凭据**:统一引用 `ZAI_CODING_CN_API_KEY`(智谱 GLM Coding Plan API Key),三层解析
@@ -39,10 +38,8 @@
 
 ## 环境要求
 
-- DeepSeek Harness Web GUI,profile `web`,≥ `0.1.0-rc.7`(设置卡片需要
-  `settings.register` 的 `exposeToClients` 支持)
+- DeepSeek Harness Web GUI,profile `web`,≥ `0.1.0-rc.7`
 - Node.js `^22.19.0 || >=24.0.0`
-- 智谱 GLM Coding Plan API Key(`ZAI_CODING_CN_API_KEY`),添加方式见
   [首次使用](#首次使用添加-zai-coding-cn-提供商)
 
 ## 安装
@@ -77,7 +74,6 @@ npx -y deepseek-harness-zhipu_plan_tools status --profile web
 
 1. 打开 **DSH 设置 → 模型**;
 2. 「提供方」下拉选择 **`zai-coding-cn`**(注意不是海外的 `zai`,本插件走智谱中国区端点 `open.bigmodel.cn`);
-3. 「API 密钥」**留空**即可(留空 = 使用环境认证),点保存。
 
 保存后 DSH 会自动使用 `ZAI_CODING_CN_API_KEY` 参数(即配置中 `apiKeyEnv: ZAI_CODING_CN_API_KEY`)
 作为该提供商的 API Key——这正是本插件默认的凭据引用名 `credentialRef`。

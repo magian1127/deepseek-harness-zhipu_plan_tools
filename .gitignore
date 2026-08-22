@@ -9,7 +9,6 @@ node_modules/
 
 # 诊断与临时
 *.log
-zhipu-diag.log
 
 # 编辑器
 .vs/

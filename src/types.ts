@@ -85,11 +85,13 @@ export interface ToolDefinitionShape {
 
 export interface ToolsService {
   register(tool: ToolDefinitionShape): Disposer
+  /** 查询目标 scope 的继承可见工具,用于避免 own-scope 阴影突破 preset 隐藏策略。 */
+  get?(name: string, scope?: unknown): ToolDefinitionShape | undefined
 }
 
 /** systemPrompt 服务:工具指引 section。 */
 export interface SystemPromptService {
-  section(section: { name: string; order?: number; text: string }): Disposer
+  section(section: { name: string; order?: number; text: string | ((context: unknown) => string) }): Disposer
 }
 
 /** settings 服务:命名空间注册(rc.7+,exposeToClients 支持设置卡片)。 */

@@ -120,3 +120,36 @@ test('MCP JSON-RPC 普通错误仍使用 provider 错误码', async () => {
     globalThis.fetch = originalFetch
   }
 })
+
+test('MCP 本地超时归类为 provider 错误而不是调用方取消', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    const signal = init?.signal
+    const onAbort = (): void => {
+      const error = new Error('aborted by timeout')
+      error.name = 'AbortError'
+      reject(error)
+    }
+    if (signal?.aborted === true) onAbort()
+    else signal?.addEventListener('abort', onAbort, { once: true })
+  })) as typeof fetch
+  try {
+    await assert.rejects(
+      () => callMcpTool(
+        'https://example.invalid/mcp',
+        'test-api-key',
+        'web_search_prime',
+        { search_query: 'specific topic' },
+        undefined,
+        { timeoutMs: 10 },
+      ),
+      (error: any) => {
+        assert.equal(error.code, ZHIPU_PROVIDER_ERROR_CODE)
+        assert.match(error.message, /超过 10ms/)
+        return true
+      },
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

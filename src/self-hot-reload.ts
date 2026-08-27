@@ -6,6 +6,12 @@
  * 为 hmr 的精确监视目标:变化 → 暂存 ESM 缓存清理 → debounce 后驱动官方
  * partialReload(清缓存 → 重新 import → 卸载旧纤维 → apply 新代码)。
  *
+ * 时序修复(2026-08):web-app bundle 禁用共享 hmr 行,watch-only 实例由
+ * launcher 在配置树 settle 之后才创建 —— 本插件(经 bundle 行冷启动)在
+ * apply 时 ctx.get('hmr') 必然为 undefined,导致自监视从未注册。修复:
+ * 用 ctx.inject(['hmr']) 等待 hmr 服务出现后再注册监视,hmr 缺席时本
+ * 插件不被阻塞(能力缺失静默降级,改动靠重启生效)。
+ *
  * 关键防坑(playbook 认知要点 3):registerConfig 初始扫描(ignoreInitial:
  * false)的 add 事件必须以 ready 标志忽略,否则注册即自触发 reload 循环。
  * watcher 与 timer 挂在自身 fiber(ctx.effect),重载后由新实例重建。
@@ -16,20 +22,15 @@ import type { Disposer, HmrService, HostContext } from './types.js'
 /** debounce 窗口:构建脚本连续写多个文件时只触发一次重载。 */
 const RELOAD_DEBOUNCE_MS = 150
 
-let reloadTimer: ReturnType<typeof setTimeout> | null = null
-
 export function installSelfHotReload(ctx: HostContext, selfModuleUrl: string): void {
-  const hmr = ctx.get('hmr') as HmrService | undefined | null
-  if (hmr === undefined || hmr === null) return
-  if (typeof hmr.registerConfig !== 'function' || typeof hmr.partialReload !== 'function') return
-  if (hmr.stashed === undefined || typeof hmr.stashed.add !== 'function') return
-
   const selfPath = fileURLToPath(selfModuleUrl)
   const disposers: Array<Disposer> = []
+  let reloadTimer: ReturnType<typeof setTimeout> | null = null
+  let installing = false
   let ready = false
   let closed = false
 
-  const schedule = (): void => {
+  const schedule = (hmr: HmrService): void => {
     if (reloadTimer !== null) clearTimeout(reloadTimer)
     reloadTimer = setTimeout(() => {
       reloadTimer = null
@@ -39,25 +40,50 @@ export function installSelfHotReload(ctx: HostContext, selfModuleUrl: string): v
     }, RELOAD_DEBOUNCE_MS)
   }
 
-  void Promise.resolve(hmr.registerConfig(selfPath, () => {
-    // 初始扫描的 add 事件必须忽略,防自触发循环。
-    if (!ready || closed) return
+  const install = (hmr: HmrService | undefined | null): void => {
+    if (hmr === undefined || hmr === null) return
+    if (typeof hmr.registerConfig !== 'function' || typeof hmr.partialReload !== 'function') return
+    if (hmr.stashed === undefined || typeof hmr.stashed.add !== 'function') return
+    if (ready || installing) return
+
+    installing = true
+    let registration: Promise<Disposer>
     try {
-      hmr.stashed.add(selfModuleUrl)
+      registration = Promise.resolve(hmr.registerConfig(selfPath, () => {
+        // 初始扫描的 add 事件必须忽略,防自触发循环。
+        if (!ready || closed) return
+        try {
+          hmr.stashed.add(selfModuleUrl)
+        } catch {
+          return
+        }
+        schedule(hmr)
+      }))
     } catch {
+      installing = false
       return
     }
-    schedule()
-  })).then((disposer: Disposer) => {
-    if (closed) {
-      void disposer()
-      return
-    }
-    ready = true
-    disposers.push(disposer)
-  }, () => {
-    // 监视注册失败:静默降级(如 hmr 尚未 active 或已被其它实例注册),
-    // 改动靠重启生效。
+    void registration.then((disposer: Disposer) => {
+      installing = false
+      if (closed) {
+        void disposer()
+        return
+      }
+      ready = true
+      disposers.push(disposer)
+    }, () => {
+      installing = false
+      // 注册失败仅失去本插件自动更新,不改变当前运行实例。
+    })
+  }
+
+  // 时序修复:bundle 行冷启动时 hmr(watch-only 实例)尚未创建,直接
+  // ctx.get 会得到 undefined。先试一次(热挂载场景 hmr 已在),再用
+  // inject 等待其出现(冷启动场景)。inject 的 disposer 在 hmr 从未出现
+  // 时由 fiber 卸载兜底清理。
+  install(ctx.get('hmr') as HmrService | undefined | null)
+  ctx.inject(['hmr'], (waitCtx) => {
+    install(waitCtx.get('hmr') as HmrService | undefined | null)
   })
 
   // 清理必须作为 effect 回调的「返回值」——ctx.effect 会立即调用回调、把其

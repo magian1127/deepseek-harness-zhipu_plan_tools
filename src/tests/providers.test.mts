@@ -1,0 +1,133 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { installZhipuReaderProvider } from '../zhipu-reader.js'
+import { installZhipuSearchProvider } from '../zhipu-search.js'
+import type { HostContext, WebFetchProviderShape, WebSearchProviderShape } from '../types.js'
+import type { ZhipuSettings } from '../settings-schema.js'
+
+const settings: ZhipuSettings = {
+  enabled: true,
+  search: true,
+  reader: true,
+  zread: false,
+  zhPrompt: false,
+  credentialRef: 'ZAI_CODING_CN_API_KEY',
+}
+
+function providerContext(): {
+  ctx: HostContext
+  search: () => WebSearchProviderShape | undefined
+  reader: () => WebFetchProviderShape | undefined
+} {
+  let searchProvider: WebSearchProviderShape | undefined
+  let readerProvider: WebFetchProviderShape | undefined
+  const ctx: HostContext = {
+    get(name: string): unknown {
+      if (name === 'credentials') return { resolve: async () => ({ value: 'test-zhipu-key' }) }
+      if (name === 'web') {
+        return {
+          registerSearchProvider(provider: WebSearchProviderShape) {
+            searchProvider = provider
+            return () => { searchProvider = undefined }
+          },
+          registerFetchProvider(provider: WebFetchProviderShape) {
+            readerProvider = provider
+            return () => { readerProvider = undefined }
+          },
+        }
+      }
+      return undefined
+    },
+    on: () => () => {},
+    effect: () => () => {},
+    inject: () => () => {},
+  }
+  return { ctx, search: () => searchProvider, reader: () => readerProvider }
+}
+
+function mcpFetch(result: unknown): typeof fetch {
+  let call = 0
+  return (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.method === 'DELETE') return new Response('', { status: 200 })
+    call++
+    if (call === 1) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'session-1' } })
+    if (call === 2) return new Response('{}', { status: 200 })
+    return new Response(JSON.stringify({ jsonrpc: '2.0', id: 2, result }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+}
+
+test('智谱搜索主路径完成 MCP 生命周期并映射来源', async () => {
+  const mock = providerContext()
+  const dispose = installZhipuSearchProvider(mock.ctx, () => settings)
+  assert.ok(dispose)
+  assert.equal(mock.search()?.available(), true)
+
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = mcpFetch({
+    content: [{
+      type: 'text',
+      text: JSON.stringify([{ link: 'https://example.com/a', title: 'A', content: 'snippet', publishedAt: '2026-01-01' }]),
+    }],
+  })
+  try {
+    const result = await mock.search()?.search({ query: 'focused query' })
+    assert.deepEqual(result?.sources, [{
+      url: 'https://example.com/a',
+      title: 'A',
+      snippet: 'snippet',
+      publishedAt: '2026-01-01',
+    }])
+  } finally {
+    globalThis.fetch = originalFetch
+    dispose()
+  }
+})
+
+test('智谱 reader 主路径映射正文与最终 URL', async () => {
+  const mock = providerContext()
+  const dispose = installZhipuReaderProvider(mock.ctx, () => settings)
+  assert.ok(dispose)
+  assert.equal(mock.reader()?.available(), true)
+
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = mcpFetch({
+    content: [{
+      type: 'text',
+      text: JSON.stringify({ url: 'https://example.com/final', title: 'Page', content: '# body' }),
+    }],
+  })
+  try {
+    const result = await mock.reader()?.fetch({ url: 'https://example.com/start' })
+    assert.equal(result?.url, 'https://example.com/final')
+    assert.equal(result?.statusCode, 200)
+    assert.deepEqual(result?.body, { kind: 'text', content: '# body' })
+  } finally {
+    globalThis.fetch = originalFetch
+    dispose()
+  }
+})
+
+test('智谱 web provider 将 MCP 传输失败映射为 WEB_PROVIDER_ERROR', async () => {
+  const mock = providerContext()
+  const dispose = installZhipuSearchProvider(mock.ctx, () => settings)
+  assert.ok(dispose)
+
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async () => new Response('upstream unavailable', { status: 503 })) as typeof fetch
+  try {
+    await assert.rejects(
+      () => mock.search()!.search({ query: 'focused query' }),
+      (error: any) => {
+        assert.equal(error.code, 'WEB_PROVIDER_ERROR')
+        assert.match(error.message, /智谱搜索请求失败/)
+        return true
+      },
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+    dispose()
+  }
+})

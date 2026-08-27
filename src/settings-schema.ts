@@ -14,12 +14,14 @@ import { dshHome } from './credentials.js'
 export interface ZhipuSettings {
   /** 总开关:关闭 = 工具卸载 + providers 停用 + 提示移除,设置入口保留。 */
   enabled: boolean
-  /** 是否接管 web_search 后端(停用而非回退,回退需删 patch 行)。 */
+  /** 是否接管 web_search 后端;关闭后由固定 provider 回退 DeepSeek。 */
   search: boolean
-  /** 是否接管 web_fetch 后端(停用而非回退)。 */
+  /** 是否接管 web_fetch 后端;关闭后由固定 provider 回退受限 HTTP 抓取。 */
   reader: boolean
   /** 是否注册 3 个 github_* 仓库工具。 */
   zread: boolean
+  /** 提示词中文化:开启后注入的提示词 section 与工具说明用中文。 */
+  zhPrompt: boolean
   /** 凭据引用名。 */
   credentialRef: string
 }
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: ZhipuSettings = {
   search: true,
   reader: true,
   zread: false,
+  zhPrompt: false,
   credentialRef: DEFAULT_CREDENTIAL_REF,
 }
 
@@ -48,6 +51,7 @@ export function normalizeSettings(value: unknown): ZhipuSettings {
     search: asBoolean(source.search, DEFAULT_SETTINGS.search),
     reader: asBoolean(source.reader, DEFAULT_SETTINGS.reader),
     zread: asBoolean(source.zread, DEFAULT_SETTINGS.zread),
+    zhPrompt: asBoolean(source.zhPrompt, DEFAULT_SETTINGS.zhPrompt),
     credentialRef: asNonEmptyString(source.credentialRef, DEFAULT_SETTINGS.credentialRef),
   }
 }
@@ -94,6 +98,7 @@ export function createSettingsSchema(z: any): any {
     search: z.boolean().default(DEFAULT_SETTINGS.search),
     reader: z.boolean().default(DEFAULT_SETTINGS.reader),
     zread: z.boolean().default(DEFAULT_SETTINGS.zread),
+    zhPrompt: z.boolean().default(DEFAULT_SETTINGS.zhPrompt),
     credentialRef: z.string().default(DEFAULT_SETTINGS.credentialRef),
   })
 }

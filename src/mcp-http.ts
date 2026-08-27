@@ -58,10 +58,15 @@ async function request(
   signal?: AbortSignal,
 ): Promise<{ text: string; sessionId: string | undefined }> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? MCP_TIMEOUT_MS)
-  const onExternalAbort = (): void => controller.abort()
+  const timeoutMs = options.timeoutMs ?? MCP_TIMEOUT_MS
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
+  const onExternalAbort = (): void => controller.abort(signal?.reason)
   if (signal !== undefined) {
-    if (signal.aborted) controller.abort()
+    if (signal.aborted) controller.abort(signal.reason)
     else signal.addEventListener('abort', onExternalAbort, { once: true })
   }
   try {
@@ -87,8 +92,16 @@ async function request(
     const text = await response.text()
     return { text, sessionId: response.headers.get('mcp-session-id') ?? undefined }
   } catch (error: unknown) {
-    if (signal?.aborted === true || isAbortError(error)) throw error
+    if (signal?.aborted === true) throw error
     if (error instanceof ZhipuError && error.code === ZHIPU_CONTENT_FILTERED_CODE) throw error
+    if (timedOut) {
+      throw new ZhipuError(
+        `[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP 请求超过 ${timeoutMs}ms`,
+        ZHIPU_PROVIDER_ERROR_CODE,
+        { cause: error },
+      )
+    }
+    if (isAbortError(error)) throw error
     const message = error instanceof Error ? error.message : String(error)
     throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP 请求失败: ${message}`, ZHIPU_PROVIDER_ERROR_CODE, { cause: error })
   } finally {

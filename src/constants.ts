@@ -31,6 +31,17 @@ export const LOCALE_NAMESPACE = 'settings.dsh-zhipu'
 /** 默认凭据引用:智谱 GLM Coding Plan API Key。 */
 export const DEFAULT_CREDENTIAL_REF = 'ZAI_CODING_CN_API_KEY'
 
+/** 内置 DeepSeek 搜索回退:Anthropic-compatible Messages 端点与凭据引用。 */
+export const DEEPSEEK_FALLBACK_BASE_URL = 'https://api.deepseek.com/anthropic/v1'
+export const DEEPSEEK_FALLBACK_API_KEY_ENV = 'DEEPSEEK_API_KEY'
+
+/** 内置搜索回退的请求预算(与上游 web-search-deepseek 默认一致)。 */
+export const DEEPSEEK_FALLBACK_TIMEOUT_MS = 30_000
+export const DEEPSEEK_FALLBACK_MODEL = 'deepseek-v4-flash'
+export const DEEPSEEK_FALLBACK_API_VERSION = '2023-06-01'
+export const DEEPSEEK_FALLBACK_MAX_TOKENS = 4096
+export const DEEPSEEK_FALLBACK_MAX_USES = 5
+
 /** MCP 单次 HTTP 请求超时(毫秒)。 */
 export const MCP_TIMEOUT_MS = 60_000
 
@@ -42,6 +53,9 @@ export const ZREAD_TOOL_TIMEOUT_MS = 60_000
 
 /** webReader 正文截断上限(字符),对齐 tool-web 的 DEFAULT_FETCH_MAX_OUTPUT_CHARS。 */
 export const READER_MAX_CONTENT_CHARS = 200_000
+
+/** 内置 web_fetch 回退:单次 HTTP 抓取超时(毫秒)。 */
+export const HTTP_FALLBACK_FETCH_TIMEOUT_MS = 30_000
 
 /** webReader 服务端抓取超时(秒,其参数单位是秒)。 */
 export const READER_FETCH_TIMEOUT_SECONDS = 20

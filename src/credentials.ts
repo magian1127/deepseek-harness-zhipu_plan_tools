@@ -76,6 +76,14 @@ export function credentialAvailable(ref: string): boolean {
 }
 
 /**
+ * provider 的同步可用性:本地已知凭据存在,或 credentials 服务可在执行时解析。
+ * 服务存在不代表指定 ref 必然存在;缺失时由执行路径返回稳定错误码。
+ */
+export function credentialResolvable(ctx: HostContext | undefined, ref: string): boolean {
+  return ctx?.get('credentials') != null || credentialAvailable(ref)
+}
+
+/**
  * 解析 API key:优先 credentials 服务(官方解析链,含热更新),回退
  * 环境变量,再回退直读 `~/.dsh/.credentials.yaml`。
  *
@@ -112,7 +120,7 @@ export async function resolveApiKey(
 
   const code = scope === 'web' ? WEB_PROVIDER_CREDENTIAL_MISSING_CODE : ZHIPU_CREDENTIAL_MISSING_CODE
   throw new ZhipuError(
-    `[${code}] 未找到凭据 ${ref},请先在凭据配置($HOME/.dsh/.credentials.yaml)或环境变量中设置智谱 Coding Plan API Key`,
+    `[${code}] 未找到凭据 ${ref},请先在凭据配置($HOME/.dsh/.credentials.yaml)或环境变量中设置对应 API Key`,
     code,
   )
 }

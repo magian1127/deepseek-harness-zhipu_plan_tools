@@ -7,13 +7,14 @@
 export const SETTINGS_NAMESPACE = 'dsh-zhipu'
 export const LOCALE_NAMESPACE = 'settings.dsh-zhipu'
 
-export const FIELDS = ['enabled', 'search', 'reader', 'zread', 'credentialRef'] as const
+export const FIELDS = ['enabled', 'search', 'reader', 'zread', 'zhPrompt', 'credentialRef'] as const
 
 export const DEFAULTS = {
   enabled: true,
   search: true,
   reader: true,
   zread: false,
+  zhPrompt: false,
   credentialRef: 'ZAI_CODING_CN_API_KEY',
 }
 
@@ -24,6 +25,7 @@ export interface SettingsValue {
   search: boolean
   reader: boolean
   zread: boolean
+  zhPrompt: boolean
   credentialRef: string
 }
 
@@ -38,6 +40,7 @@ export function normalized(value: unknown): SettingsValue {
     search: typeof source.search === 'boolean' ? source.search : DEFAULTS.search,
     reader: typeof source.reader === 'boolean' ? source.reader : DEFAULTS.reader,
     zread: typeof source.zread === 'boolean' ? source.zread : DEFAULTS.zread,
+    zhPrompt: typeof source.zhPrompt === 'boolean' ? source.zhPrompt : DEFAULTS.zhPrompt,
     credentialRef: typeof source.credentialRef === 'string' && source.credentialRef.trim().length > 0 ? source.credentialRef.trim() : DEFAULTS.credentialRef,
   }
 }

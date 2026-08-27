@@ -8,10 +8,14 @@
  *
  * 跟随部署开关:DSH 预设 tool-web 行默认 fetch: false,本 provider 注册
  * 但无感知;部署启用 fetch 后自动接管(见 cordis.patch.yml 注释)。
+ *
+ * 关闭回退:enabled/reader 关闭后,fetch() 内部回退到受限 HTTP(S) 文本抓取
+ * (http-fallback),不再报后端不可用。
  */
 import { READER_FETCH_TIMEOUT_SECONDS, READER_MAX_CONTENT_CHARS, READER_MCP_URL, READER_PROVIDER_ID } from './constants.js'
-import { credentialAvailable, resolveApiKey } from './credentials.js'
-import { WEB_PROVIDER_ERROR_CODE, ZhipuError, isAbortError } from './errors.js'
+import { credentialResolvable, resolveApiKey } from './credentials.js'
+import { WEB_PROVIDER_ERROR_CODE, ZHIPU_CONTENT_FILTERED_CODE, ZhipuError, isAbortError } from './errors.js'
+import { httpFetchFallback } from './http-fallback.js'
 import { callMcpTool, contentText } from './mcp-http.js'
 import type { Disposer, HostContext, WebFetchProviderShape, WebService } from './types.js'
 import type { ZhipuSettings } from './settings-schema.js'
@@ -42,14 +46,20 @@ export function installZhipuReaderProvider(ctx: HostContext, getSettings: Settin
   const provider: WebFetchProviderShape = {
     id: READER_PROVIDER_ID,
     available(): boolean {
+      // 开启态看智谱凭据;关闭态走受限 HTTP(S) 抓取,始终可用
+      // (HTTP 抓取无需凭据)。
       const settings = getSettings()
-      return settings.enabled && settings.reader && credentialAvailable(settings.credentialRef)
+      return !(settings.enabled && settings.reader) || credentialResolvable(ctx, settings.credentialRef)
     },
     async fetch(request, signal) {
       const url = String(request.url ?? '').trim()
       if (url.length === 0) throw new Error('url must be a non-empty string')
 
       const settings = getSettings()
+      if (!(settings.enabled && settings.reader)) {
+        // 回退模式:受限 HTTP(S) 文本抓取(不带凭据,不改写 URL)。
+        return httpFetchFallback(url, signal)
+      }
       const apiKey = await resolveApiKey(ctx, settings.credentialRef, 'web', signal)
 
       let result: any
@@ -66,9 +76,12 @@ export function installZhipuReaderProvider(ctx: HostContext, getSettings: Settin
         )
       } catch (error: unknown) {
         if (signal?.aborted === true || isAbortError(error)) throw error
-        throw error instanceof ZhipuError
-          ? error
-          : new ZhipuError(`[${WEB_PROVIDER_ERROR_CODE}] 智谱网页读取请求失败: ${error instanceof Error ? error.message : String(error)}`, WEB_PROVIDER_ERROR_CODE, { cause: error })
+        if (error instanceof ZhipuError && error.code === ZHIPU_CONTENT_FILTERED_CODE) throw error
+        throw new ZhipuError(
+          `[${WEB_PROVIDER_ERROR_CODE}] 智谱网页读取请求失败: ${error instanceof Error ? error.message : String(error)}`,
+          WEB_PROVIDER_ERROR_CODE,
+          { cause: error },
+        )
       }
 
       // content 为 JSON 字符串(实测双层编码),剥出 {title,url,content}。

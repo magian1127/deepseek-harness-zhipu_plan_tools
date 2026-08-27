@@ -68,7 +68,7 @@ function defineZreadTool(
   getSettings: SettingsGetter,
   spec: {
     name: string
-    description: string
+      description: { en: string; zh: string }
     mcpTool: string
     properties: Record<string, unknown>
     required: string[]
@@ -77,7 +77,7 @@ function defineZreadTool(
 ): ToolDefinitionShape {
   return {
     name: spec.name,
-    description: spec.description,
+      description: getSettings().zhPrompt ? spec.description.zh : spec.description.en,
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -119,7 +119,10 @@ export function installZhipuZreadTools(ctx: HostContext, getSettings: SettingsGe
   const definitions = [
     defineZreadTool(ctx, getSettings, {
       name: 'github_search_doc',
-      description: 'Search documentation, issues, and commits of a GitHub repository. repo_name must be "owner/repo" (e.g. "vitejs/vite"), never a bare repo name. query is the search keywords or question. language is optional: "zh" or "en".',
+        description: {
+          en: 'Search documentation, issues, and commits of a GitHub repository. repo_name must be "owner/repo" (e.g. "vitejs/vite"), never a bare repo name. query is the search keywords or question. language is optional: "zh" or "en".',
+          zh: '搜索 GitHub 仓库的文档、issue 与 commit。repo_name 必须是 "owner/repo" 格式(如 "vitejs/vite"),不要传裸仓库名。query 是搜索关键词或问题。language 可选:"zh" 或 "en"。',
+        },
       mcpTool: 'search_doc',
       properties: {
         repo_name: { type: 'string', description: 'GitHub repository: owner/repo (e.g. "vitejs/vite").' },
@@ -144,7 +147,10 @@ export function installZhipuZreadTools(ctx: HostContext, getSettings: SettingsGe
     }),
     defineZreadTool(ctx, getSettings, {
       name: 'github_get_repo_structure',
-      description: 'List the directory structure and file list of a GitHub repository. repo_name must be "owner/repo" (e.g. "vitejs/vite"). dir_path is the directory to inspect (default root "/").',
+        description: {
+          en: 'List the directory structure and file list of a GitHub repository. repo_name must be "owner/repo" (e.g. "vitejs/vite"). dir_path is the directory to inspect (default root "/").',
+          zh: '查看 GitHub 仓库的目录结构与文件列表。repo_name 必须是 "owner/repo" 格式(如 "vitejs/vite")。dir_path 是要查看的目录(默认根目录 "/")。',
+        },
       mcpTool: 'get_repo_structure',
       properties: {
         repo_name: { type: 'string', description: 'GitHub repository: owner/repo (e.g. "vitejs/vite").' },
@@ -166,7 +172,10 @@ export function installZhipuZreadTools(ctx: HostContext, getSettings: SettingsGe
     }),
     defineZreadTool(ctx, getSettings, {
       name: 'github_read_file',
-      description: 'Read the full content of one file in a GitHub repository. repo_name must be "owner/repo" (e.g. "vitejs/vite"). file_path is the file path relative to the repository root (e.g. "src/index.ts").',
+        description: {
+          en: 'Read the full content of one file in a GitHub repository. repo_name must be "owner/repo" (e.g. "vitejs/vite"). file_path is the file path relative to the repository root (e.g. "src/index.ts").',
+          zh: '读取 GitHub 仓库中一个文件的完整内容。repo_name 必须是 "owner/repo" 格式(如 "vitejs/vite")。file_path 是相对仓库根目录的文件路径(如 "src/index.ts")。',
+        },
       mcpTool: 'read_file',
       properties: {
         repo_name: { type: 'string', description: 'GitHub repository: owner/repo (e.g. "vitejs/vite").' },

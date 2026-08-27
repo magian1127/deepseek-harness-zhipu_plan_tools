@@ -2,13 +2,14 @@
  * 智谱联网搜索 searchProvider —— 注册到 `ctx.web` 的搜索后端。
  *
  * 移植自 deepseek-harness-ZhiPu_web_search 已修复版本(dshHome 回退 +
- * 幂等注册),curl 子进程换 Node 全局 fetch(mcp-http 共用客户端),
- * 并接入设置:enabled/search 停用语义(available false;真正回退内置
- * 需删 patch 行,README 写明)。
+ * 幂等注册),curl 子进程换 Node 全局 fetch(mcp-http 共用客户端)。
+ * 并接入设置:enabled/search 开启走智谱,关闭后透明回退内置 DeepSeek
+ * 搜索(deepseek-fallback 直连),不再报后端不可用。
  */
 import { SEARCH_MCP_URL, SEARCH_PROVIDER_ID } from './constants.js'
-import { credentialAvailable, resolveApiKey } from './credentials.js'
-import { WEB_PROVIDER_CREDENTIAL_MISSING_CODE, WEB_PROVIDER_ERROR_CODE, ZhipuError, isAbortError } from './errors.js'
+import { credentialResolvable, resolveApiKey } from './credentials.js'
+import { deepseekFallbackAvailable, deepseekSearch } from './deepseek-fallback.js'
+import { WEB_PROVIDER_CREDENTIAL_MISSING_CODE, WEB_PROVIDER_ERROR_CODE, ZHIPU_CONTENT_FILTERED_CODE, ZhipuError, isAbortError } from './errors.js'
 import { callMcpTool, contentText } from './mcp-http.js'
 import type { Disposer, HostContext, WebSearchProviderShape, WebService } from './types.js'
 import type { ZhipuSettings } from './settings-schema.js'
@@ -37,15 +38,21 @@ export function installZhipuSearchProvider(ctx: HostContext, getSettings: Settin
   const provider: WebSearchProviderShape = {
     id: SEARCH_PROVIDER_ID,
     available(): boolean {
-      // Web seam 要求 available() 同步且不得网络请求;因此这里使用本地兼容检查。
+      // Web seam 要求 available() 同步且不得网络请求。开启态看智谱凭据;
+      // 关闭态看内置 DeepSeek 凭据(回退模式仍被选中,由 search() 分流)。
       const settings = getSettings()
-      return settings.enabled && settings.search && credentialAvailable(settings.credentialRef)
+      const zhipu = settings.enabled && settings.search
+      return zhipu ? credentialResolvable(ctx, settings.credentialRef) : deepseekFallbackAvailable(ctx)
     },
     async search(request, signal) {
       const query = String(request.query ?? '').trim()
       if (query.length === 0) throw new Error('query must be a non-empty string')
 
       const settings = getSettings()
+      if (!(settings.enabled && settings.search)) {
+        // 回退模式:内置 DeepSeek 搜索直连(不改写查询)。
+        return deepseekSearch(ctx, query, signal)
+      }
       const apiKey = await resolveApiKey(ctx, settings.credentialRef, 'web', signal)
 
       let result: any
@@ -53,9 +60,12 @@ export function installZhipuSearchProvider(ctx: HostContext, getSettings: Settin
         result = await callMcpTool(SEARCH_MCP_URL, apiKey, 'web_search_prime', { search_query: query }, signal)
       } catch (error: unknown) {
         if (signal?.aborted === true || isAbortError(error)) throw error
-        throw error instanceof ZhipuError
-          ? error
-          : new ZhipuError(`[${WEB_PROVIDER_ERROR_CODE}] 智谱搜索请求失败: ${error instanceof Error ? error.message : String(error)}`, WEB_PROVIDER_ERROR_CODE, { cause: error })
+        if (error instanceof ZhipuError && error.code === ZHIPU_CONTENT_FILTERED_CODE) throw error
+        throw new ZhipuError(
+          `[${WEB_PROVIDER_ERROR_CODE}] 智谱搜索请求失败: ${error instanceof Error ? error.message : String(error)}`,
+          WEB_PROVIDER_ERROR_CODE,
+          { cause: error },
+        )
       }
 
       // content 是 JSON 字符串(可能双层编码),剥出条目数组。

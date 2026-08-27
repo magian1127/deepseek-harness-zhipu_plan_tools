@@ -94,7 +94,7 @@ function classifyContentType(value: string | null): 'html' | 'text' | undefined 
 }
 
 function decoderForContentType(value: string | null): TextDecoder {
-  const charset = /;\s*charset\s*=\s*"?([^";]+)"?/i.exec(value ?? '')?.[1]?.trim().toLowerCase()
+  const charset = (value ?? '').match(/;\s*charset\s*=\s*"?([^";]+)"?/i)?.[1]?.trim().toLowerCase()
   try {
     return new TextDecoder(charset ?? 'utf-8')
   } catch (error: unknown) {

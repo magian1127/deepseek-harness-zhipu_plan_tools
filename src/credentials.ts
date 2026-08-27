@@ -49,7 +49,7 @@ function credentialInFile(ref: string, home: string = dshHome()): string | undef
       }
       // refs 段结束于下一个顶层 YAML 键。
       if (line.length > 0 && !/^\s/.test(line)) break
-      const match = /^\s+([A-Za-z_][A-Za-z0-9_-]*):\s*(.*?)\s*$/.exec(line)
+      const match = line.match(/^\s+([A-Za-z_][A-Za-z0-9_-]*):\s*(.*?)\s*$/)
       if (match === null || match[1] !== ref) continue
       let value = match[2]
       if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {

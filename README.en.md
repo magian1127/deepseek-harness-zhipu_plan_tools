@@ -46,7 +46,7 @@ npm install
 node bin/dsh-zhipu.mjs install --profile web --link <project-path>
 ```
 
-The project CLI selects an available hot-mount path and never requires restarting DSH. Refresh the existing GUI after mounting, then inspect status with:
+This package patch includes `web.config`, so it is not compatible with dsh-zh's simple manifest reconcile. The CLI uses this project's bridge/temporary-entry strategy; after it reports completion, confirm `status`, the live provider/tool registries, and the existing GUI:
 
 ```sh
 npx -y deepseek-harness-zhipu_plan_tools status --profile web
@@ -76,7 +76,7 @@ Once enabled, `web_fetch` automatically uses the Zhipu reader. See the authorita
 
 ## Settings and data
 
-Settings are stored in the `dsh-zhipu` namespace of DSH `settings.yaml` and apply live. The master switch, feature switches, disable-vs-fallback behavior, credential lookup, output limits, and telemetry boundary are maintained only in the [behavior contract](docs/behavior.md).
+Settings are stored in the `dsh-zhipu` namespace of DSH `settings.yaml` and apply live. Switching `search`/`reader` off enters compatibility fallbacks at runtime (the DSH DeepSeek request shape via `DEEPSEEK_API_KEY`; a bounded HTTP(S) text fetch), without restarting DSH. The HTTP fallback validates URLs, follows same-origin redirects only, and caps transfer and decoded output; its exact limits and residual DNS-rebinding boundary are documented in the [behavior contract](docs/behavior.md), together with the master switch, credential lookup, failure codes, and telemetry boundary.
 
 ## Uninstall
 

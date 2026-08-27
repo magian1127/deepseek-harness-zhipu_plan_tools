@@ -1,7 +1,7 @@
 # 运行架构（architecture）
 
 > 本文件是运行结构、模块契约、架构决策、调研事实与技术路线图的权威位置。
-> 用户可见语义见 [`behavior.md`](behavior.md)，实现约束和热路径见 [`development.md`](development.md)。
+> 用户可见语义见 [`behavior.md`](behavior.md)，本插件实现约束和热挂例外见 [`development.md`](development.md)。
 
 ## 运行结构
 
@@ -72,13 +72,16 @@
 
 `mcp-http` 当前按 `initialize` → `notifications/initialized` → `tools/call` → `DELETE` 执行。清理使用短超时并尽力而为；取消后不等待清理。用户可见的延迟边界见 [`behavior.md#调用边界与失败模式`](behavior.md#调用边界与失败模式)。
 
-### 保留用户查询，单独注入查询指引
+### provider 常驻、关闭即回退，工具按设置装卸
 
-搜索 provider 不改写参数。查询精度通过独立的 `tool:web_search:query-guidance` system prompt section 提升，并随 `enabled` / `search` 实时装卸。这样既避免改变用户意图，也能对上游宽泛查询的不稳定过滤行为给出前置引导。
+搜索和读取 provider 常驻 registry;`available()` 在开启态看智谱凭据,关闭态看回退可用性(搜索看 `DEEPSEEK_API_KEY`,读取恒可用)。三个仓库工具随 `zread` 动态注册或卸载。具体设置语义只在 [`behavior.md#设置语义`](behavior.md#设置语义) 定义。
 
-### provider 常驻，工具按设置装卸
+### web_search 工具与说明的 Agent 作用域阴影
 
-搜索和读取 provider 常驻 registry，以 `available()` 反映最新设置与凭据；三个仓库工具及其 prompt sections 随 `zread` 动态注册或卸载。具体设置语义只在 [`behavior.md#设置语义`](behavior.md#设置语义) 定义。
+`search` 开启时,仅对继承视图中原 `web_search` 可见的 Agent 注册同名工具与 `tool:web_search` 说明(systemPrompt.section scope 层阴影全局),沿 dsh-hashline 的 scoped-shadow 模式(`src/search-tool.ts`),不突破 preset 隐藏策略。替代工具保留内置的查询数、来源数、工具预算与同批失败取消语义。工具 description 为静态字符串,随 `zhPrompt` 变化由 refresh() 对所有 live Agent 重装;说明 text 为函数,组装时按设置实时取值。新 Agent 由 `agent/created` 事件自动接管。
+
+### 关闭开关不依赖 seam 回退,由 provider 自回退
+`web` 行的 `searchProvider` / `fetchProvider` 被 bundle patch 静态 pin 到本插件;`WebRuntime` 在构造时固化 configuredId(只读,运行时不可改),configured provider 不可用时报 `WEB_PROVIDER_CONFIGURED_UNAVAILABLE`,seam 不会自动选其他 provider。因此关闭开关后:搜索由 provider 内部按 DSH 请求形状直连 DeepSeek 搜索端点(`deepseek-fallback`),读取由 provider 内部执行受限 HTTP(S) 文本抓取(`http-fallback`)。后者负责 URL、同源重定向、内容类型、传输预算与 Fiber 外无持久副作用的边界;剩余 DNS 风险和其他插件兼容边界见 [`behavior.md#关闭后的回退语义`](behavior.md#关闭后的回退语义)。
 
 ### 凭据解析带 DSH home 回退
 
@@ -86,7 +89,7 @@
 
 ### 动态 Loader 与单文件 host bundle
 
-可靠的运行时挂载使用动态 Loader；query URL 用于绕过 ESM 入口缓存。因为入口 query 不会刷新多模块包的相对导入，host 产物必须保持单文件 bundle。完整热路径与缓存事实集中在 [`development.md#热路径选择`](development.md#热路径选择)。
+可靠的运行时挂载使用动态 Loader；query URL 用于绕过 ESM 入口缓存。因为入口 query 不会刷新多模块包的相对导入，host 产物必须保持单文件 bundle。完整热路径与缓存事实集中在 [`development.md#热路径选择智谱专属例外`](development.md#热路径选择智谱专属例外)。
 
 ## 调研事实
 

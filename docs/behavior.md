@@ -12,16 +12,15 @@
 | 开源仓库工具 | 关 | 开启后注册 `github_search_doc`、`github_get_repo_structure`、`github_read_file` |
 | 设置卡片 | 始终保留 | 位于 DSH 设置 → 插件设置；支持实时开关、凭据引用和中英界面 |
 
-### 搜索查询约定
+### 搜索工具的接管与说明替换
 
-插件随搜索开关动态注入查询指引，要求模型：
+`search` 开启时,本插件除接入后端外,还会在 Agent 作用域注册**同名 `web_search` 工具与 `tool:web_search` 说明** —— 阴影全局内置 tool-web 的对应注册(沿 hashline 的 scoped-shadow 模式):
 
-- 每条查询围绕一个明确、可验证的目标；
-- 尽量补充实体或主题、事件或指标，以及必要的时间、地区、版本或来源限定；
-- 将概览请求按主题拆分，不把多个无关问题拼入一次搜索；
-- 保留用户意图，只补充必要限定。
-
-provider 会原样发送最终查询，不静默改写、不自动重试、不扩大范围，也不回退到其他搜索后端。
+- 仅当该 Agent 的继承视图中原 `web_search` 可见时才建立阴影,不会突破 preset 的隐藏策略;
+- 模型看到的 `web_search` 是本插件的(description 按语言切换),不是内置的;调用仍保留内置契约的每次 1–4 条查询、最多 8 个合并来源、30 秒工具预算与同批失败联动取消;
+- 系统提示中的 `tool:web_search` 说明同样只出现本插件的版本,内置原文不会重复出现;调用中与历史回放仍使用 DSH 的搜索结果卡片和结构化来源 meta;
+- 说明为**一段自写文本**(体现智谱后端),含使用方式与查询要点:收窄目标、补充时限/地区/版本限定、避免泛化与多问题拼接、先搜后迭代、保留用户原意 —— 不再单独注入查询指引 section;
+- 语言:默认英文(与内置工具风格一致),开启 `zhPrompt` 后为中文。
 
 ## 设置语义
 
@@ -29,13 +28,21 @@ provider 会原样发送最终查询，不静默改写、不自动重试、不�
 
 | 字段 | 类型 | 默认值 | 语义 |
 | --- | --- | --- | --- |
-| `enabled` | boolean | `true` | 总开关。关闭后搜索和读取 provider 停用、仓库工具与提示卸载；设置入口保留 |
-| `search` | boolean | `true` | 是否接管 `web_search`。关闭是**停用而非回退**，见下文 |
-| `reader` | boolean | `true` | 是否接管 `web_fetch`。关闭同样是停用而非回退 |
+| `enabled` | boolean | `true` | 总开关。关闭后搜索/读取进入兼容回退、仓库工具与提示卸载；设置入口保留 |
+| `search` | boolean | `true` | 是否接管 `web_search`。关闭后回退 DeepSeek 原生搜索(见下方回退语义) |
+| `reader` | boolean | `true` | 是否接管 `web_fetch`。关闭后回退受限 HTTP(S) 抓取 |
 | `zread` | boolean | `false` | 是否注册三个 `github_*` 工具；关闭后立即从模型工具目录移除 |
+| `zhPrompt` | boolean | `false` | 提示词中文化:开启后注入的系统提示词 section 与 `github_*` 工具说明使用中文(默认英文,与内置工具一致);开启时 `zread` 工具会随切换重装 |
 | `credentialRef` | string | `ZAI_CODING_CN_API_KEY` | 智谱 GLM Coding Plan API Key 的凭据引用名 |
 
-`search` 或 `reader` 关闭后，挂载配置仍指向本插件 provider，因此对应内置工具会报告后端不可用。若要恢复 DSH 内置后端，必须从挂载行移除对应的 `searchProvider` 或 `fetchProvider` 指向，而不只是关闭设置。
+### 关闭后的回退语义
+
+`search` 或 `reader` 关闭后，web 行配置仍指向本插件 provider(configuredId 静态固化,seam 不回退)，因此由 provider 自身提供回退：
+
+- **搜索回退**:关闭后 `web_search` 仍可用,内部按 DSH DeepSeek provider 的请求形状直连 `https://api.deepseek.com/anthropic/v1/messages` 并使用 `web_search_20250305`,凭据为 `DEEPSEEK_API_KEY`;单次请求含 30 秒本地超时。`available()` 只做本地同步判断,执行时再走完整凭据解析链。
+- **读取回退**:关闭后 `web_fetch` 仍可用,内部用 Node `fetch` 抓取公开 HTTP(S) 文本资源。它拒绝 URL 内嵌凭据、显式本机/私网地址、跨源重定向和非文本响应,限制 5 次同源重定向、5,000,000 响应字节与 200,000 正文字符;不提供完整 DNS 重绑定防护。
+- **回退兼容边界**:回退目标是内置 DeepSeek 搜索,不是其他插件替换的后端。若部署里有其他插件的 patch 排在本插件之后接管 `searchProvider`,seam 会选中它,本插件无感知;若本插件排最后,关闭后回退的是内置 DeepSeek,而不是被覆盖的其他后端——要恢复其他后端的接管,需从挂载行移除本插件的 provider 指向(卸载通道),不能只关开关。
+- 彻底恢复静态配置(让内置 provider 或上层插件重新接管)仍走卸载通道:从挂载行移除 `searchProvider` / `fetchProvider` 指向。
 
 ## 凭据与数据边界
 
@@ -53,7 +60,7 @@ provider 会原样发送最终查询，不静默改写、不自动重试、不�
 2. 当前进程环境变量；
 3. `${DSH_HOME:-~/.dsh}/.credentials.yaml` 的 `refs` 段。
 
-provider 的 `available()` 只检查环境变量与凭据文件，不发网络请求。API Key 不写入插件配置、日志或错误信息；插件不做遥测、不上传额外数据，也不注册智谱官方 MCP 之外的网络端点。
+provider 的 `available()` 只确认 credentials 服务是否可解析或本地环境变量/凭据文件是否已知存在，不发网络请求；指定引用实际缺失时由执行路径返回稳定错误码。API Key 不写入插件配置、日志或错误信息；插件不做遥测、不上传额外数据。搜索/读取开启时只调用智谱官方 MCP；关闭时调用上述 DeepSeek 或 HTTP(S) 回退端点。
 
 ## `web_fetch` 启用边界
 
@@ -69,12 +76,14 @@ DSH 预设的 `tool-web` 行通常为 `fetch: false`。插件只设置 reader pr
 
 ## 调用边界与失败模式
 
-- **凭据缺失**：搜索/读取报告 `WEB_PROVIDER_CREDENTIAL_MISSING`；仓库工具报告 `ZHIPU_CREDENTIAL_MISSING`。先检查 `zai-coding-cn` 与 `credentialRef` 对应的环境变量或凭据文件。
+- **凭据缺失**：智谱路径报告 `WEB_PROVIDER_CREDENTIAL_MISSING`;回退路径(内置 DeepSeek 搜索)同样报告该码并提示 `DEEPSEEK_API_KEY`;仓库工具报告 `ZHIPU_CREDENTIAL_MISSING`。先检查 `zai-coding-cn` 与 `credentialRef` 对应的环境变量或凭据文件。
 - **历史工具参数异常**：回放旧 `github_*` 调用时，展示层降级为通用卡片；实际执行仍严格校验，`repo_name` 必须是 `owner/repo`。
-- **取消**：`AbortSignal` 全程透传；调用中止后不等待 MCP 会话清理，DELETE 清理失败不覆盖原结果。
+- **取消与超时**：调用方 `AbortSignal` 全程透传并保持取消语义；调用中止后不等待 MCP 会话清理，DELETE 清理失败不覆盖原结果。插件自身 MCP 请求超时归类为 provider 失败，不伪装成用户取消。
 - **会话生命周期**：每次调用独立完成 MCP 初始化、调用和清理，当前不复用连接，额外约有一次握手往返。
-- **网页正文上限**：`webReader` 正文最多保留 200,000 字符，超出时返回 `truncated: true`。
+- **网页正文上限**：`webReader` 与 HTTP 回退正文最多保留 200,000 字符，超出时返回 `truncated: true`；HTTP 回退另有 5,000,000 字节传输上限。
 - **搜索内容过滤**：上游返回结构化 `contentFilter` 时，插件统一映射为 `ZHIPU_CONTENT_FILTERED`，返回固定短提示，引导将搜索收窄到明确目标并补充实体、时间、地区、指标或来源。不会自动重试或切换后端。
+- **回退搜索失败**：内置 DeepSeek 搜索请求失败、超过 30 秒或未返回 `web_search_tool_result` 块时报告 `WEB_PROVIDER_ERROR`;不会自动改回智谱或重试。
+- **回退抓取失败**：关闭 reader 后的 HTTP 抓取网络失败报告 `WEB_PROVIDER_ERROR`;超时、URL/重定向策略、响应大小或内容类型失败使用下表对应错误码。非 2xx 文本响应仍作为结果返回,不抛错。
 
 ## 错误码速查
 
@@ -86,6 +95,10 @@ DSH 预设的 `tool-web` 行通常为 `fetch: false`。插件只设置 reader pr
 | `WEB_PROVIDER_CONFIGURED_UNAVAILABLE` | DSH：provider 已注册但 `available()` 为 false | 检查总开关、功能开关和本地凭据 |
 | `WEB_PROVIDER_CREDENTIAL_MISSING` | 插件：搜索/读取解析不到凭据 | 检查 `credentialRef`、环境变量和凭据文件 |
 | `WEB_PROVIDER_ERROR` | 插件或 DSH：搜索/读取传输、解析或 provider 调用失败 | 查看消息中的错误码前缀与 cause |
+| `WEB_INVALID_URL` / `WEB_BLOCKED_URL` | HTTP 回退：URL 非 HTTP(S)、过长、含凭据或为显式本机/私网地址 | 改用公开、规范的 HTTP(S) URL |
+| `WEB_REDIRECT_BLOCKED` | HTTP 回退：跨源重定向或超过 5 次 | 直接检查并请求可信最终 URL |
+| `WEB_UNSUPPORTED_CONTENT_TYPE` | HTTP 回退：响应不是支持的文本类型或字符集 | 改用文本/HTML/JSON/XML 资源 |
+| `WEB_FETCH_TOO_LARGE` / `WEB_FETCH_TIMEOUT` | HTTP 回退：响应超过字节上限或 30 秒传输预算 | 使用更小资源或更具体的页面 URL |
 | `WEB_ABORTED` | 搜索/读取调用被取消 | 正常取消路径；检查调用方 signal |
 | `WEB_DUPLICATE_PROVIDER` | DSH：同一 provider id 被重复注册 | 检查是否存在双挂载并确认幂等保护 |
 | `ZHIPU_CREDENTIAL_MISSING` | 仓库工具解析不到凭据 | 同凭据检查步骤 |

@@ -1,7 +1,6 @@
 # 发布流程（release）
 
-> 本文件是发布前验证、版本记录与 npm 发布的权威位置。
-> 日常开发验证见 [`development.md#验证分层`](development.md#验证分层)，Git 协作规则见 [`../AGENTS.md#git-纪律`](../AGENTS.md#git-纪律)。
+> 本文件是本插件发布前验证、版本记录与 npm 发布的权威位置。日常开发规则见 [`development.md`](development.md)；仓库协作边界只在工作区 `AGENTS.md` 维护。
 
 ## 发布前验证
 
@@ -26,7 +25,7 @@ npm pack --dry-run --json
 - CLI 无参数 usage 冒烟符合约定；
 - npm tarball 只包含预期发布文件，不含凭据、日志或本机路径。
 
-涉及用户界面或运行时行为的版本，还要在**现有** DSH GUI 中完成真实验收：client 改动按开发热路径推送或刷新页面，host 改动依赖自监视局部重载；不得重启 DSH，也不得启动替代服务。热路径细节见 [`development.md#热路径选择`](development.md#热路径选择)。
+涉及用户界面或运行时行为的版本，还要在**现有** DSH GUI 中完成真实验收：client 改动确认实际 bundle 后刷新页面，host 改动依赖自监视局部重载；不得重启 DSH，也不得启动替代服务。本插件复杂 patch 的例外见 [`development.md#热路径选择智谱专属例外`](development.md#热路径选择智谱专属例外)。
 
 ## 版本来源
 
@@ -39,6 +38,14 @@ npm pack --dry-run --json
 不要在其他技术文档维护“当前版本”副本。
 
 ## 版本记录
+### Unreleased
+
+- 恢复系统提示词注入(撤销 df667fd);注入文本与工具说明改为英文对齐内置工具,新增 `zhPrompt` 设置:开启后注入文本与 `github_*` 工具说明切换为中文,实时生效;
+- `search` 开启时在 Agent 作用域阴影全局内置 `web_search` 工具与 `tool:web_search` 说明(沿 hashline scoped-shadow 模式),说明同样随 `zhPrompt` 切换中英;
+- 修正 web_search 说明:改为一段自写文本(体现智谱后端,含使用与查询要点),不再翻译内置原版简介,也不再单独注入 query-guidance section;
+- 修复关闭开关后无法搜索的问题:`search` / `reader` 关闭后由 provider 内部透明回退(内置 DeepSeek 搜索直连 + 直接 HTTP 抓取),不再报后端不可用,无需重启 DSH;
+- 修复自监视热重载时序 bug(hmr 延迟创建,改用 ctx.inject 等待);
+- 同步更新 behavior / architecture / development 文档与双语 README 中的相关描述。
 
 ### 0.1.2
 
@@ -47,11 +54,11 @@ npm pack --dry-run --json
 - 保持查询原样传递，不自动重试、扩大范围或切换后端；
 - 增加内容过滤与提示动态装卸测试，并完善构建产物和 CLI usage 校验。
 
-上述行为的现行契约见 [`behavior.md#搜索查询约定`](behavior.md#搜索查询约定) 与 [`behavior.md#错误码速查`](behavior.md#错误码速查)，实现结构见 [`architecture.md`](architecture.md)。版本记录只说明“发生了什么”，不复制完整行为定义。
+上述行为的现行契约见 [`behavior.md#搜索工具的接管与说明替换`](behavior.md#搜索工具的接管与说明替换) 与 [`behavior.md#错误码速查`](behavior.md#错误码速查)，实现结构见 [`architecture.md`](architecture.md)。版本记录只说明“发生了什么”，不复制完整行为定义。
 
 ## npm 发布
 
-1. 确认用户已审核工作区差异，并按 [`AGENTS.md`](../AGENTS.md) 的规则明确批准提交和发布动作。
+1. 确认用户已审核工作区差异，并明确批准提交和发布动作。
 2. 首次登录或凭证失效时，在交互式前台执行：
 
    ```powershell

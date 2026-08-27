@@ -13,32 +13,29 @@
 | [`docs/development.md`](docs/development.md) | 仓库结构、热路径、不可破坏约束、开发经验与测试策略 |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | 按症状诊断、运行时观察与已知环境事实 |
 | [`docs/release.md`](docs/release.md) | 发布前验证、版本记录与 npm 发布 |
+| [`../docs/`](../docs/README.md) | 四项目共享的流程、运行时/HMR、Cordis 安全、集成冲突与通用验收 |
 
 同一事实只保留一个权威位置，其他文档只写必要摘要并链接：
 
 - 用户可见语义以 [`docs/behavior.md`](docs/behavior.md) 为准；
 - 实现规则以 [`docs/development.md`](docs/development.md) 为准；
-- 发布步骤以 [`docs/release.md`](docs/release.md) 为准。
+- 发布步骤以 [`docs/release.md`](docs/release.md) 为准；
+- 跨项目共性以 [`../docs/`](../docs/README.md) 为准，项目文档不复制长篇共享经验。
 
 ## 铁律（最高优先级）
 
-1. **任何时候不允许重启 DSH**（`dsh web` 进程）。需要重启才能生效的改动就是没写对，必须使用 [`docs/development.md#热路径选择`](docs/development.md#热路径选择) 中的热路径。
-2. **不得修改 DSH 源码仓库**；它只读，仅供查阅接口与实现。
-3. **不得在文档中写入本机绝对路径**（盘符、用户名或具体安装目录）。本地文件使用项目相对路径或 `${DSH_HOME:-~/.dsh}` 下的相对路径；参考项目使用包名或占位符。
+1. 共享的禁止重启、DSH checkout 边界、profile 真值与 HMR 路径见 [`../docs/runtime-hmr.md`](../docs/runtime-hmr.md)，本项目需遵守其全部边界。
+2. **不得在文档中写入本机绝对路径**（盘符、用户名或具体安装目录）。本地文件使用项目相对路径或 `${DSH_HOME:-~/.dsh}` 下的相对路径；参考项目使用包名或占位符。
 
 ## 工程纪律
 
 - 不顺手重构无关代码，不覆盖用户已有改动。
 - 本插件的挂载、依赖和临时行只通过项目 CLI 读写，不直接编辑；DSH 自有功能开关按用户文档配置。
 - 修改用户可见行为时，同步维护双语用户说明和 [`docs/behavior.md`](docs/behavior.md)；修改实现规则时更新 [`docs/development.md`](docs/development.md)。
-- 包格式、挂载行、幂等清理、凭据和 HMR 等硬约束统一见 [`docs/development.md#不可破坏的约束`](docs/development.md#不可破坏的约束)，不要在其他文档复制清单。
-- 任何改动后的开发验证见 [`docs/development.md#验证分层`](docs/development.md#验证分层)；发布前执行完整的 [`docs/release.md#发布前验证`](docs/release.md#发布前验证)。
+- 包格式、挂载行与本插件凭据例外见 [`docs/development.md#不可破坏的约束`](docs/development.md#不可破坏的约束)；共性 Fiber/HMR 规则见 [`../docs/`](../docs/README.md)，不要重复清单。
+- 任何改动后的开发验证按 [`../docs/validation.md`](../docs/validation.md) 分层，并执行本项目 `npm run typecheck`、`npm run build`、`npm test`、`npm run verify`；发布前执行完整的 [`docs/release.md#发布前验证`](docs/release.md#发布前验证)。
 - 部署或运行异常统一从 [`docs/troubleshooting.md`](docs/troubleshooting.md) 开始排查。
 
 ## Git 纪律
 
-- 不主动执行 `git commit` 或 `git push`；必须先由用户审核并明确批准。
-- commit message 必须全中文且以中文开头；英文专业术语放在中文后的括号内。
-  - 正确：`默认展开思考（thinking）输出`
-  - 错误：`feat: 默认展开思考`
-- 默认分支为 `main`。
+提交审批、中文标题和工作树检查统一见 [`../docs/workflow.md`](../docs/workflow.md)。本仓库默认分支为 `main`。

@@ -47,7 +47,7 @@
 发布后(推荐):
 
 ```sh
-# 官方通道:安装后按提示热挂载或重启一次
+# 官方持久通道：自然下一次启动后生效
 dsh plugin --profile web add deepseek-harness-zhipu_plan_tools
 
 # 热安装:DSH 正在运行时可立即生效
@@ -61,8 +61,7 @@ npm install          # prepare 自动构建
 node bin/dsh-zhipu.mjs install --profile web --link <项目绝对路径>
 ```
 
-CLI 会自动选择热通道:dsh-zh 在运行图中时由其 manifest reconcile 热挂载(约 1-3 秒,
-刷新网页生效);否则写入临时热行并如实提示。查看状态:
+本包 patch 含 `web.config`，不符合 dsh-zh 的简单 manifest reconcile；CLI 会使用本项目的桥接/临时行策略。提示完成后仍需用 `status`、实际 provider/tool 状态和现有 GUI 确认是否挂载：
 
 ```sh
 npx -y deepseek-harness-zhipu_plan_tools status --profile web
@@ -99,13 +98,15 @@ DSH 预设默认关闭 `web_fetch`(`tool-web` 行 `fetch: false`),本插件不�
 
 | 数据 | 存储位置 |
 | --- | --- |
-| enabled / search / reader / zread / credentialRef | DSH `settings.yaml`,命名空间 `dsh-zhipu` |
+| enabled / search / reader / zread / zhPrompt / credentialRef | DSH `settings.yaml`,命名空间 `dsh-zhipu` |
 
-- **总开关 `enabled`**:关闭 = 搜索/读取后端停用、仓库工具卸载、提示移除;设置入口保留。
-- **`search` / `reader` 是停用而非回退**:关闭后 `web_search` / `web_fetch` 报"后端不可用"
-  结构化错误;彻底恢复内置后端需从挂载行删除 `searchProvider` / `fetchProvider` 指向。
+- **总开关 `enabled`**:关闭 = 搜索/读取进入兼容回退、仓库工具与提示卸载;设置入口保留。
+- **`search` / `reader` 关闭即回退**:关闭后 `web_search` 仍可用,按 DSH 内置请求形状回退 DeepSeek 搜索
+  (凭据 `DEEPSEEK_API_KEY`);`web_fetch` 回退受限 HTTP(S) 文本抓取。彻底恢复静态配置(让上层插件重新
+  接管或移除 provider 指向)仍需从挂载行删除 `searchProvider` / `fetchProvider`,详见
+  [行为契约](docs/behavior.md#关闭后的回退语义)。
 - **`zread` 可干净装卸**:默认关闭；开启后注册三个仓库工具，关闭后工具立即从模型工具目录消失。
-- 不上传数据、不做遥测、不注册额外网络端点(仅智谱官方 MCP 端点)。
+- 不上传额外数据、不做遥测；网络调用限于智谱官方 MCP、DeepSeek 搜索回退和用户明确传入的 HTTP(S) 页面。
 
 ## 卸载
 
@@ -128,8 +129,7 @@ npm run verify      # 产物存在性 + 语法 + client bundle 格式 + CLI usag
 node scripts/smoke-live.mjs   # 真实 API 冒烟(需要凭据;search/reader/zread)
 ```
 
-热迭代循环(不重启 DSH):改 `src/` → `npm run build` → 自监视热重载自动生效;
-客户端改动在 `pnpm run dev:web` watcher 下自动推送,否则刷新页面。
+改 `src/` 后运行 `npm run build`；Host 以实际 provider/tool 变化验收，Client 以当前 profile 提供的 bundle 与设置卡验收。复杂 patch 的首次挂载限制见[开发指南](docs/development.md#热路径选择智谱专属例外)。
 
 ## 开发文档
 

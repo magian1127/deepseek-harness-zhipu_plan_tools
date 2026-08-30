@@ -41,7 +41,7 @@
 | `src/zhipu-search.ts` | provider id `zhipu-web-search-prime`；传递 `search_query` 并映射搜索来源 |
 | `src/zhipu-reader.ts` | provider id `zhipu-web-reader`；请求 Markdown，解析双层 JSON 并映射 `WebFetchResult` |
 | `src/zhipu-zread.ts` | 注册三个 `github_*` 工具、参数 schema、60 秒协作超时与通用展示卡片 |
-| `src/settings-schema.ts` / `src/client.ts` | 注册 `dsh-zhipu` 设置命名空间和浏览器设置卡片，实时同步五个字段 |
+| `src/settings-schema.ts` / `src/client.ts` | 注册 `dsh-zhipu` 设置命名空间和浏览器设置卡片，实时同步六个字段 |
 | `src/self-hot-reload.ts` | 精确监视 host 构建产物，并通过官方 HMR API 局部重载 |
 | `src/bin/` | 管理持久行、临时热行和桥接行；按可用能力选择热挂载通道 |
 

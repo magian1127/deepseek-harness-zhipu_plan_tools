@@ -3,14 +3,14 @@
 > 本文件是用户可见行为、默认值、设置语义、失败模式与错误码的权威位置。
 > 安装和卸载入口见 [`README.md`](../README.md)；实现原理见 [`architecture.md`](architecture.md)；遇到故障从 [`troubleshooting.md`](troubleshooting.md) 开始。
 
-## 功能与默认值
+## 功能总览
 
-| 功能 | 插件默认值 | 用户可见行为 |
-| --- | --- | --- |
-| 联网搜索 | 开 | 接管内置 `web_search` 后端，调用智谱 `web_search_prime`，返回中英文混合来源 |
-| 网页读取 provider | 开 | 接管内置 `web_fetch` 后端，调用智谱 `webReader` 并返回 Markdown 正文；但 DSH 的 `web_fetch` 工具默认关闭，需另行启用 |
-| 开源仓库工具 | 关 | 开启后注册 `github_search_doc`、`github_get_repo_structure`、`github_read_file` |
-| 设置卡片 | 始终保留 | 位于 DSH 设置 → 插件设置；支持实时开关、凭据引用和中英界面 |
+| 能力 | 用户可见行为 |
+| --- | --- |
+| 联网搜索 | 接管内置 `web_search` 后端，调用智谱 `web_search_prime`，返回中英文混合来源 |
+| 网页读取 provider | 接管内置 `web_fetch` 后端，调用智谱 `webReader` 并返回 Markdown 正文；但 DSH 的 `web_fetch` 工具默认关闭，需另行启用 |
+| 开源仓库工具 | 按设置注册 `github_search_doc`、`github_get_repo_structure`、`github_read_file` |
+| 设置卡片 | 始终位于 DSH 设置 → 插件 → 插件配置；支持实时开关、凭据引用和中英界面 |
 
 ### 搜索工具的接管与说明替换
 
@@ -24,7 +24,8 @@
 
 ## 设置语义
 
-设置存储在 DSH `settings.yaml` 的 `dsh-zhipu` 命名空间，修改实时生效：
+设置存储在 DSH `settings.yaml` 的 `dsh-zhipu` 命名空间，修改实时生效。下表严格按照
+可收缩设置卡片从上到下排列；卡片默认收起，底部为恢复默认值、放弃修改和保存：
 
 | 字段 | 类型 | 默认值 | 语义 |
 | --- | --- | --- | --- |

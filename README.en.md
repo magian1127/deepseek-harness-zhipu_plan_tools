@@ -12,20 +12,24 @@
 
 Brings three Zhipu GLM Coding Plan MCP services into DSH as native providers and tools: it replaces the built-in `web_search` and `web_fetch` backends, and optionally adds three `github_*` repository tools. A bilingual settings card applies changes live.
 
-## Features
+## Features and settings order
 
-| Feature | Plugin default | Summary |
+Expand **Zhipu Tools** under **DSH Settings → Plugins → Plugin configuration**. The rows below follow the card from top to bottom:
+
+| Setting | Plugin default | Summary |
 | --- | --- | --- |
-| Web search | on | Routes built-in `web_search` through Zhipu `web_search_prime` |
-| Web reader provider | on | Routes built-in `web_fetch` through Zhipu `webReader`; DSH keeps the tool itself off by default |
-| Repository tools | off | Adds `github_search_doc`, `github_get_repo_structure`, and `github_read_file` when enabled |
-| Settings card | available | Live toggles and credential reference under DSH Settings → Plugins |
+| Enable Zhipu tools | on | Master switch; off enters search/reader compatibility fallbacks and unregisters repo tools and related guidance while keeping the card |
+| Web search (takes over `web_search`) | on | Routes search through Zhipu `web_search_prime` and replaces the model-visible built-in search guidance |
+| Web reader (takes over `web_fetch`) | on | Routes reads through Zhipu `webReader`; DSH still keeps the `web_fetch` tool itself off by default |
+| Repository tools | off | Adds `github_search_doc`, `github_get_repo_structure`, and `github_read_file` |
+| Chinese prompts | off | Switches plugin-injected guidance and tool descriptions from the default English to Chinese; tool names stay unchanged |
+| Credential reference | `ZAI_CODING_CN_API_KEY` | Stores only the credential reference name, never the API key |
 
-Search and reader are provider swaps, so model-facing web tool names stay unchanged. Repository tools are registered natively and disappear from the model catalog when disabled. See the [behavior contract](docs/behavior.md) for exact defaults, settings semantics, query guidance, data boundaries, and errors.
+The card starts collapsed and ends with Restore defaults / Discard changes / Save. Search and reader are provider swaps, so model-facing web tool names stay unchanged; repository tools are registered natively and disappear from the model catalog when disabled. See the [behavior contract](docs/behavior.md) for query guidance, data boundaries, and errors.
 
 ## Requirements
 
-- DeepSeek Harness Web GUI, profile `web`, ≥ `0.1.0-rc.7`
+- DeepSeek Harness Web GUI, profile `web`, ≥ `0.1.2-alpha.1`
 - Node.js `^22.19.0 || >=24.0.0`
 - A Zhipu GLM Coding Plan API key referenced by `ZAI_CODING_CN_API_KEY` by default
 
@@ -76,7 +80,7 @@ Once enabled, `web_fetch` automatically uses the Zhipu reader. See the authorita
 
 ## Settings and data
 
-Settings are stored in the `dsh-zhipu` namespace of DSH `settings.yaml` and apply live. Switching `search`/`reader` off enters compatibility fallbacks at runtime (the DSH DeepSeek request shape via `DEEPSEEK_API_KEY`; a bounded HTTP(S) text fetch), without restarting DSH. The HTTP fallback validates URLs, follows same-origin redirects only, and caps transfer and decoded output; its exact limits and residual DNS-rebinding boundary are documented in the [behavior contract](docs/behavior.md), together with the master switch, credential lookup, failure codes, and telemetry boundary.
+The six fields shown above are stored in that same order in the `dsh-zhipu` namespace of DSH `settings.yaml` and apply live; the API key itself is never stored there. Switching `search`/`reader` off enters compatibility fallbacks at runtime (the DSH DeepSeek request shape via `DEEPSEEK_API_KEY`; a bounded HTTP(S) text fetch), without restarting DSH. The HTTP fallback validates URLs, follows same-origin redirects only, and caps transfer and decoded output; its exact limits and residual DNS-rebinding boundary are documented in the [behavior contract](docs/behavior.md), together with credential lookup, failure codes, and telemetry boundaries.
 
 ## Uninstall
 

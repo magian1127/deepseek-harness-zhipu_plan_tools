@@ -3,6 +3,10 @@
   "version": "0.1.3",
   "type": "module",
   "description": "智谱 MCP 三件套 for DSH:联网搜索(search)、网页读取(reader)、开源仓库(zread)原生 provider 与工具,附设置页卡片。Zhipu MCP suite (web search / reader / zread) as native DSH providers and tools, with a settings card.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/magian1127/deepseek-harness-zhipu_plan_tools.git"
+  },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "bin": {

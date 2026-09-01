@@ -38,7 +38,7 @@ npm pack --dry-run --json
 不要在其他技术文档维护“当前版本”副本。
 
 ## 版本记录
-### Unreleased
+### 0.1.3
 
 - 恢复系统提示词注入(撤销 df667fd);注入文本与工具说明改为英文对齐内置工具,新增 `zhPrompt` 设置:开启后注入文本与 `github_*` 工具说明切换为中文,实时生效;
 - `search` 开启时在 Agent 作用域阴影全局内置 `web_search` 工具与 `tool:web_search` 说明(沿 hashline scoped-shadow 模式),说明同样随 `zhPrompt` 切换中英;

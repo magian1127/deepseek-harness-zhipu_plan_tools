@@ -5,7 +5,7 @@
 [中文](README.md) · [English](README.en.md)
 
 <p align="center">
-  <img alt="version 0.1.2" src="https://img.shields.io/badge/version-0.1.2-5965d8">
+  <img alt="version 0.1.3" src="https://img.shields.io/badge/version-0.1.3-5965d8">
   <img alt="features search/reader/repo" src="https://img.shields.io/badge/features-search%20%C2%B7%20reader%20%C2%B7%20repo-4aa3ff">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-3b7a57">
 </p>

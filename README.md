@@ -5,7 +5,7 @@
 [中文](README.md) · [English](README.en.md)
 
 <p align="center">
-  <img alt="版本 0.1.2" src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-0.1.2-5965d8">
+  <img alt="版本 0.1.3" src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-0.1.3-5965d8">
   <img alt="功能 搜索/读取/仓库" src="https://img.shields.io/badge/%E5%8A%9F%E8%83%BD-%E6%90%9C%E7%B4%A2%20%C2%B7%20%E8%AF%BB%E5%8F%96%20%C2%B7%20%E4%BB%93%E5%BA%93-4aa3ff">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-3b7a57">
 </p>

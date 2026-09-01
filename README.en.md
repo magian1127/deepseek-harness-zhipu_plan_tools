@@ -25,7 +25,7 @@ Expand **Zhipu Tools** under **DSH Settings → Plugins → Plugin configuration
 | Chinese prompts | off | Switches plugin-injected guidance and tool descriptions from the default English to Chinese; tool names stay unchanged |
 | Credential reference | `ZAI_CODING_CN_API_KEY` | Stores only the credential reference name, never the API key |
 
-The card starts collapsed and ends with Restore defaults / Discard changes / Save. Search and reader are provider swaps, so model-facing web tool names stay unchanged; repository tools are registered natively and disappear from the model catalog when disabled. See the [behavior contract](docs/behavior.md) for query guidance, data boundaries, and errors.
+The card starts collapsed and ends with Restore defaults / Discard changes / Save. Search and reader are provider swaps, so model-facing web tool names stay unchanged; repository tools are registered natively and disappear from the model catalog when disabled. The `web_search` shadow is never registered under the **minimal preset** (the "persistent shell + str_replace_editor" two-tool composition), preserving that preset's promise. See the [behavior contract](docs/behavior.md) for query guidance, data boundaries, and errors.
 
 ## Requirements
 

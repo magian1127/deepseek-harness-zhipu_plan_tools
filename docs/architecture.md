@@ -78,7 +78,7 @@
 
 ### web_search 工具与说明的 Agent 作用域阴影
 
-`search` 开启时,仅对继承视图中原 `web_search` 可见的 Agent 注册同名工具与 `tool:web_search` 说明(systemPrompt.section scope 层阴影全局),沿 dsh-hashline 的 scoped-shadow 模式(`src/search-tool.ts`),不突破 preset 隐藏策略。替代工具保留内置的查询数、来源数、工具预算与同批失败取消语义。工具 description 为静态字符串,随 `zhPrompt` 变化由 refresh() 对所有 live Agent 重装;说明 text 为函数,组装时按设置实时取值。新 Agent 由 `agent/created` 事件自动接管。
+`search` 开启时,仅对继承视图中原 `web_search` 可见的 Agent 注册同名工具与 `tool:web_search` 说明(systemPrompt.section scope 层阴影全局),沿 dsh-hashline 的 scoped-shadow 模式(`src/search-tool.ts`),不突破 preset 隐藏策略;其中**极简模式(minimal 预设)——“仅持久 shell + str_replace_editor”的双工具组合——直接豁免**,不注册阴影(`index.ts` 的 `isMinimalAgent` 经 `agentPresets.composedPreset(agent.ctx)` 判定);`zread` 开启时还在极简 Agent 作用域以 `restrict` deny 全局 `github_*` 工具——与 hashline 同理:极简 agent 的继承视图暴露 host 全局注册的工具,必须显式 deny 才能保持双工具承诺,且 deny 与 `search` 开关无关(由 `installAgentSurface` 统一建立表面)。替代工具保留内置的查询数、来源数、工具预算与同批失败取消语义。工具 description 为静态字符串,随 `zhPrompt` 变化由 refresh() 对所有 live Agent 重装;说明 text 为函数,组装时按设置实时取值。新 Agent 由 `agent/created` 事件自动接管。 会话中途切换预设(如 cordis → minimal,DSH `recompose`)时,经官方 `agent-preset/selected` 对目标 Agent 重新评估,撤销已装阴影/改挂 deny,避免残留注入;不得监听 `tools/change` 兜底——工具注册/注销会同步触发它,重装表面又触发它,形成无限递归卡死会话创建。
 
 ### 关闭开关不依赖 seam 回退,由 provider 自回退
 `web` 行的 `searchProvider` / `fetchProvider` 被 bundle patch 静态 pin 到本插件;`WebRuntime` 在构造时固化 configuredId(只读,运行时不可改),configured provider 不可用时报 `WEB_PROVIDER_CONFIGURED_UNAVAILABLE`,seam 不会自动选其他 provider。因此关闭开关后:搜索由 provider 内部按 DSH 请求形状直连 DeepSeek 搜索端点(`deepseek-fallback`),读取由 provider 内部执行受限 HTTP(S) 文本抓取(`http-fallback`)。后者负责 URL、同源重定向、内容类型、传输预算与 Fiber 外无持久副作用的边界;剩余 DNS 风险和其他插件兼容边界见 [`behavior.md#关闭后的回退语义`](behavior.md#关闭后的回退语义)。

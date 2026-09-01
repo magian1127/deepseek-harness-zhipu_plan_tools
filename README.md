@@ -39,6 +39,7 @@
   指引与通用卡片，60 秒协作超时；历史中的过期或畸形参数仅降级为通用卡片，不影响会话重放，实际执行仍严格校验参数。
 - **凭据**：统一引用 `ZAI_CODING_CN_API_KEY`（智谱 GLM Coding Plan API Key），三层解析
   （DSH 凭据服务 → 环境变量 → `~/.dsh/.credentials.yaml` 直读）；Key 永不写入配置或日志。
+  - **尊重 Agent 预设**：极简模式（minimal 预设）是“仅持久 shell + str_replace_editor”的双工具组合，该模式下不注册 `web_search` 阴影；`zread` 开启时还在该 Agent 作用域 deny 全局 `github_*` 工具（该 deny 不依赖 `search` 开关，插件启用即生效），保持双工具承诺。
 - **热更新**：Host 侧产物自监视热重载（改 `src/` → `npm run build` 即生效，无需重启）；
   设置 `applies: 'live'` 实时生效。
 

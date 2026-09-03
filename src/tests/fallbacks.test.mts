@@ -18,6 +18,8 @@ function credentialContext(): HostContext {
   }
 }
 
+const publicLookup = async () => [{ address: '93.184.216.34', family: 4 }]
+
 test('HTTP 回退在网络请求前拒绝显式本机与私网 URL', async () => {
   const originalFetch = globalThis.fetch
   let called = false
@@ -58,7 +60,7 @@ test('HTTP 回退拒绝跨源重定向', async () => {
   }) as typeof fetch
   try {
     await assert.rejects(
-      () => httpFetchFallback('https://example.com/start'),
+        () => httpFetchFallback('https://example.com/start', undefined, publicLookup),
       (error: any) => {
         assert.equal(error.code, 'WEB_REDIRECT_BLOCKED')
         return true
@@ -77,14 +79,14 @@ test('HTTP 回退保留非 2xx 文本结果并拒绝二进制响应', async () =
     ? new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'application/octet-stream' } })
     : new Response('missing', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })) as typeof fetch
   try {
-    const result = await httpFetchFallback('https://example.com/missing')
+      const result = await httpFetchFallback('https://example.com/missing', undefined, publicLookup)
     assert.equal(result.statusCode, 404)
     assert.equal(result.body.kind, 'text')
     assert.equal(result.body.content, 'missing')
 
     binary = true
     await assert.rejects(
-      () => httpFetchFallback('https://example.com/file.bin'),
+        () => httpFetchFallback('https://example.com/file.bin', undefined, publicLookup),
       (error: any) => {
         assert.equal(error.code, 'WEB_UNSUPPORTED_CONTENT_TYPE')
         return true
@@ -93,6 +95,34 @@ test('HTTP 回退保留非 2xx 文本结果并拒绝二进制响应', async () =
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('HTTP 回退拒绝 DNS 解析到私网地址', async () => {
+  const lookup = async () => [{ address: '10.0.0.8', family: 4 }]
+  await assert.rejects(
+    () => httpFetchFallback('https://rebind.example.test/', undefined, lookup),
+    (error: any) => error.code === 'WEB_BLOCKED_URL' && /rebind\.example\.test/.test(error.message),
+  )
+})
+
+test('HTTP 回退允许 DNS 解析到公网地址', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async () => new Response('ok', { status: 200, headers: { 'content-type': 'text/plain' } })) as typeof fetch
+  try {
+    const lookup = async () => [{ address: '93.184.216.34', family: 4 }]
+    const result = await httpFetchFallback('https://public.example.test/', undefined, lookup)
+    assert.equal(result.body.content, 'ok')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('HTTP 回退拒绝 DNS 解析失败', async () => {
+  const lookup = async () => { throw new Error('NXDOMAIN') }
+  await assert.rejects(
+    () => httpFetchFallback('https://missing.example.test/', undefined, lookup),
+    (error: any) => error.code === 'WEB_BLOCKED_URL' && /missing\.example\.test/.test(error.message),
+  )
 })
 
 test('DeepSeek citation 映射跳过 null 与畸形条目', () => {

@@ -21,6 +21,14 @@ export function dshHome(): string {
   return join(homedir(), '.dsh')
 }
 
+/** 与 DSH launcher 的 resolveProfileDir 保持一致的 flat profile 名校验。 */
+export function validateProfileName(name: string): string {
+  if (name === '' || name.includes('/') || name.includes('\\') || name === '.' || name === '..' || name === 'node_modules') {
+    throw new Error(`invalid profile name ${JSON.stringify(name)}; use a flat name such as "web"`)
+  }
+  return name
+}
+
 /** 新建 patch 文件时的说明头。 */
 const NEW_FILE_HEADER = `# Your patch layer for this dsh profile, applied after every bundle layer:
 # a top-level YAML array of loader patch entries (id-targeted config
@@ -29,7 +37,7 @@ const NEW_FILE_HEADER = `# Your patch layer for this dsh profile, applied after 
 
 /** profile 的 patch 文件路径。 */
 export function patchPath(profile: string = 'web'): string {
-  return join(dshHome(), 'profiles', profile, 'cordis.patch.yml')
+  return join(dshHome(), 'profiles', validateProfileName(profile), 'cordis.patch.yml')
 }
 
 function escapeRe(text: string): string {

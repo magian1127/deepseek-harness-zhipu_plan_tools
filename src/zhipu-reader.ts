@@ -20,7 +20,8 @@ import { callMcpTool, contentText } from './mcp-http.js'
 import type { Disposer, HostContext, WebFetchProviderShape, WebService } from './types.js'
 import type { ZhipuSettings } from './settings-schema.js'
 import type { SettingsGetter } from './zhipu-search.js'
-import { parseMaybeDoubleEncoded } from './util.js'
+import { parseMaybeDoubleEncoded, untrustedContentBoundary } from './util.js'
+import { registerWithTakeover } from './registration.js'
 
 /** webReader 结果的最小形状(实测:双层 JSON 编码字符串剥出后)。 */
 interface ReaderPayload {
@@ -100,20 +101,15 @@ export function installZhipuReaderProvider(ctx: HostContext, getSettings: Settin
       return {
         url: finalUrl,
         statusCode: 200,
-        body: { kind: 'text', content },
+          body: { kind: 'text', content: `${untrustedContentBoundary()}\n\n${content}\n\n--- 外部内容结束 ---` },
         truncated,
       }
     },
   }
 
-  const dispose = (() => {
-    try {
-      return web.registerFetchProvider(provider)
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (/already registered/i.test(message)) return () => {}
-      throw error
-    }
-  })()
+  const dispose = registerWithTakeover(
+    () => web.registerFetchProvider(provider),
+    `web-fetch-provider:${READER_PROVIDER_ID}`,
+  )
   return () => { dispose() }
 }

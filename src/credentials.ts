@@ -86,7 +86,30 @@ export function credentialResolvable(ctx: HostContext | undefined, ref: string):
 /**
  * 解析 API key:优先 credentials 服务(官方解析链,含热更新),回退
  * 环境变量,再回退直读 `~/.dsh/.credentials.yaml`。
- *
+ */
+/** 在调用方预算内解析凭据;服务 Promise 迟到或失败均不得形成未处理 rejection。 */
+async function resolveWithSignal(
+  credentials: CredentialsService,
+  ref: string,
+  signal: AbortSignal | undefined,
+): Promise<{ value: string } | undefined> {
+  const resolution = credentials.resolve(ref)
+  void resolution.catch(() => undefined)
+  if (signal === undefined) return resolution
+  if (signal.aborted) throw new Error('credential resolution aborted')
+  let onAbort: (() => void) | undefined
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(new Error('credential resolution aborted'))
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    return await Promise.race([resolution, aborted])
+  } finally {
+    if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
+  }
+}
+
+/**
  * @param scope 'web' 走官方 WebError 语义码,'tool' 走本插件码。
  * @throws ZhipuError(*_CREDENTIAL_MISSING)三层都拿不到时。
  */
@@ -100,13 +123,14 @@ export async function resolveApiKey(
   const credentials = ctx?.get('credentials') as CredentialsService | undefined | null
   if (credentials !== undefined && credentials !== null) {
     try {
-      const resolved = await credentials.resolve(ref)
+        const resolved = await resolveWithSignal(credentials, ref, signal)
       if (resolved !== undefined && resolved !== null && resolved.value.length > 0) {
         return resolved.value
       }
-    } catch {
-      // 服务失败继续走回退,不掩盖后续错误。
-    }
+      } catch (error: unknown) {
+        if (signal?.aborted === true) throw aborting(scope)
+        // 服务失败继续走回退,不掩盖后续错误。
+      }
   }
   if (signal?.aborted === true) throw aborting(scope)
 

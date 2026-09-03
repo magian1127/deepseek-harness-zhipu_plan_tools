@@ -14,6 +14,7 @@ import { callMcpTool, contentText } from './mcp-http.js'
 import type { Disposer, HostContext, WebSearchProviderShape, WebService } from './types.js'
 import type { ZhipuSettings } from './settings-schema.js'
 import { parseMaybeDoubleEncoded } from './util.js'
+import { registerWithTakeover } from './registration.js'
 
 /** 设置读取器:总是读最新快照(原子替换,无锁)。 */
 export type SettingsGetter = () => ZhipuSettings
@@ -90,15 +91,10 @@ export function installZhipuSearchProvider(ctx: HostContext, getSettings: Settin
     },
   }
 
-  const dispose = (() => {
-    try {
-      return web.registerSearchProvider(provider)
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (/already registered/i.test(message)) return () => {}
-      throw error
-    }
-  })()
+  const dispose = registerWithTakeover(
+    () => web.registerSearchProvider(provider),
+    `web-search-provider:${SEARCH_PROVIDER_ID}`,
+  )
   return () => { dispose() }
 }
 

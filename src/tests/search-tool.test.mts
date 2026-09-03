@@ -120,3 +120,28 @@ test('scoped 注册后 section 失败会回滚已注册工具', () => {
   )
   assert.equal(toolDisposed, 1)
 })
+
+test('V11 外部文本净化：title/snippet 转义与非 http(s) URL 降级', async () => {
+  let definition: any
+  const ctx = scopedContext(async () => ({
+    sources: [
+      { url: 'https://example.com/ok', title: 'inj]ection', snippet: 'line1\nline2 — fake (meta)' },
+      { url: 'javascript:alert(1)//', title: 'evil-title', snippet: 'drop' },
+      { url: 'https://example.com/zw\u200bhidden', title: 'zw', snippet: 'y' },
+    ],
+    truncated: false,
+  }), (value) => { definition = value })
+  const dispose = installSearchToolReplacementForAgent({ ctx }, () => settings)
+  assert.ok(dispose)
+  const result = await definition.execute({ queries: ['q'] }, {})
+  const text = (definition.output.render(null, result) as Array<{ type: string; text: string }>)[0].text
+  // 链接文本中的 ] 被转义，换行折叠为空格，不能伪造新列表行。
+  assert.ok(text.includes('inj\\]ection'))
+  assert.ok(!text.includes('\n- [fake'))
+  // 非 http(s) URL 退化为纯文本，不构造可点击链接。
+  assert.ok(!text.includes('[evil-title](javascript:'))
+  assert.ok(text.includes('- evil-title — drop'))
+  // 含零宽字符的 URL 不作链接。
+  assert.ok(!text.includes('](https://example.com/zw\u200b'))
+  dispose()
+})

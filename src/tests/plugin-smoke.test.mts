@@ -217,9 +217,9 @@ test('关闭 reader:fetch() 回退到内置 HTTP 抓取', async () => {
     return new Response('<html>hello</html>', { status: 200, headers: { 'content-type': 'text/html' } })
   }) as typeof fetch
   try {
-    const result = await mock.fetchProvider.fetch({ url: 'https://example.com/page' })
+      const result = await mock.fetchProvider.fetch({ url: 'https://93.184.216.34/page' })
     assert.equal(captured.length, 1)
-    assert.equal(captured[0].url, 'https://example.com/page')
+      assert.equal(captured[0].url, 'https://93.184.216.34/page')
     assert.equal(result.statusCode, 200)
     assert.equal(result.body.kind, 'html')
     assert.equal(result.body.content, '<html>hello</html>')

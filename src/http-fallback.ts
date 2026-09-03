@@ -4,12 +4,14 @@
  * URL 基础校验、同源重定向、超时、响应字节/字符上限与内容类型检查。
  */
 import { HTTP_FALLBACK_FETCH_TIMEOUT_MS } from './constants.js'
+import { promises as dns } from 'node:dns'
 import { WEB_PROVIDER_ERROR_CODE, ZhipuError, abortedError, isAbortError } from './errors.js'
 
 const HTTP_FALLBACK_MAX_URL_LENGTH = 2_048
 const HTTP_FALLBACK_MAX_RESPONSE_BYTES = 5_000_000
 const HTTP_FALLBACK_MAX_CONTENT_CHARS = 200_000
 const HTTP_FALLBACK_MAX_REDIRECTS = 5
+const HTTP_FALLBACK_DNS_TIMEOUT_MS = 3_000
 
 function webError(message: string, code: string = WEB_PROVIDER_ERROR_CODE, cause?: unknown): ZhipuError {
   return new ZhipuError(`[${code}] ${message}`, code, cause === undefined ? undefined : { cause })
@@ -40,27 +42,28 @@ function ipv6Words(host: string): number[] | undefined {
     : undefined
 }
 
-/** 拒绝显式本机/私网地址,含 IPv4-mapped IPv6。DNS 重绑定不在保证范围内。 */
-function isBlockedLiteralHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '')
-  if (host === 'localhost' || host.endsWith('.localhost')) return true
-
+/** 按解析出的 IP 拒绝本机、私网、保留、组播及未指定地址。 */
+function isBlockedIp(address: string): boolean {
+  const host = address.toLowerCase().replace(/^\[|\]$/g, '')
   const octets = host.split('.').map((part) => Number(part))
   if (isBlockedIpv4(octets)) return true
   if (!host.includes(':')) return false
-
   const words = ipv6Words(host)
   if (words === undefined) return true
   const first = words[0] as number
   if (words.every((word) => word === 0) || words.slice(0, 7).every((word) => word === 0) && words[7] === 1) return true
   if ((first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80 || (first & 0xffc0) === 0xfec0 || (first & 0xff00) === 0xff00) return true
-
-  // ::ffff:a.b.c.d 与旧式 ::a.b.c.d 映射在 WHATWG URL 中会规范化为十六进制。
+  // IPv4-mapped IPv6 地址复用 IPv4 规则。
   if (words.slice(0, 5).every((word) => word === 0) && (words[5] === 0 || words[5] === 0xffff)) {
-    const mapped = [words[6] >>> 8, words[6] & 0xff, words[7] >>> 8, words[7] & 0xff]
-    if (isBlockedIpv4(mapped)) return true
+    if (isBlockedIpv4([words[6] >>> 8, words[6] & 0xff, words[7] >>> 8, words[7] & 0xff])) return true
   }
   return false
+}
+
+/** 拒绝显式本机/私网地址。 */
+function isBlockedLiteralHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  return host === 'localhost' || host.endsWith('.localhost') || isBlockedIp(host)
 }
 
 function validateUrl(input: string): URL {
@@ -83,6 +86,40 @@ function validateUrl(input: string): URL {
     throw webError(`拒绝访问本机或私网地址 ${url.hostname}`, 'WEB_BLOCKED_URL')
   }
   return url
+}
+
+type LookupAll = (hostname: string, options: { all: true; verbatim: true }) => Promise<ReadonlyArray<{ address: string; family: number }>>
+const defaultLookup = ((hostname: string, options: { all: true; verbatim: true }) => dns.lookup(hostname, options)) as LookupAll
+
+/**
+ * DNS 预解析防护。校验与 fetch 连接之间仍存在毫秒级 TOCTOU 窗口，理论上可被 DNS
+ * 重绑定利用；未来应改用 undici Agent + 自定义 lookup 固定通过校验的地址。当前 Node
+ * 环境没有可解析的 undici runtime 包，因此这里只做务实的预解析校验。
+ */
+async function validateResolvedHostname(hostname: string, lookup: LookupAll, signal?: AbortSignal): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let onAbort: (() => void) | undefined
+  try {
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('DNS lookup timeout')), HTTP_FALLBACK_DNS_TIMEOUT_MS)
+    })
+    const aborted = new Promise<never>((_, reject) => {
+      onAbort = () => reject(new DOMException('aborted', 'AbortError'))
+      if (signal?.aborted === true) onAbort()
+      else signal?.addEventListener('abort', onAbort, { once: true })
+    })
+    const addresses = await Promise.race([lookup(hostname, { all: true, verbatim: true }), timeout, aborted])
+    if (addresses.length === 0 || addresses.some(({ address }) => isBlockedIp(address))) {
+      throw webError(`拒绝访问解析到本机或私网地址的主机 ${hostname}`, 'WEB_BLOCKED_URL')
+    }
+  } catch (error: unknown) {
+    if (isAbortError(error)) throw error
+    if (error instanceof ZhipuError && error.code === 'WEB_BLOCKED_URL') throw error
+    throw webError(`无法安全解析主机 ${hostname}`, 'WEB_BLOCKED_URL', error)
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+    if (onAbort !== undefined) signal?.removeEventListener('abort', onAbort)
+  }
 }
 
 function classifyContentType(value: string | null): 'html' | 'text' | undefined {
@@ -148,7 +185,7 @@ async function readCapped(response: Response): Promise<{ bytes: Uint8Array; trun
   return { bytes, truncated }
 }
 
-async function followAndRead(initialUrl: string, signal: AbortSignal): Promise<{
+async function followAndRead(initialUrl: string, signal: AbortSignal, lookup: LookupAll = defaultLookup): Promise<{
   url: string
   statusCode: number
   body: { kind: 'html' | 'text'; content: string }
@@ -158,6 +195,7 @@ async function followAndRead(initialUrl: string, signal: AbortSignal): Promise<{
   let redirects = 0
 
   for (;;) {
+    await validateResolvedHostname(current.hostname, lookup, signal)
     const response = await fetch(current, {
       method: 'GET',
       redirect: 'manual',
@@ -222,7 +260,7 @@ async function followAndRead(initialUrl: string, signal: AbortSignal): Promise<{
 }
 
 /** 直接抓取一个 URL 并映射为 WebFetchResult。 */
-export async function httpFetchFallback(url: string, signal?: AbortSignal): Promise<{
+export async function httpFetchFallback(url: string, signal?: AbortSignal, lookup: LookupAll = defaultLookup): Promise<{
   url: string
   statusCode: number
   body: { kind: 'html' | 'text'; content: string }
@@ -239,7 +277,7 @@ export async function httpFetchFallback(url: string, signal?: AbortSignal): Prom
   else signal?.addEventListener('abort', onOuterAbort, { once: true })
 
   try {
-    return await followAndRead(url, controller.signal)
+      return await followAndRead(url, controller.signal, lookup)
   } catch (error: unknown) {
     if (error instanceof ZhipuError) throw error
     if (signal?.aborted === true) throw abortedError('web', signal, error)

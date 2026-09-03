@@ -112,7 +112,9 @@ test('MCP JSON-RPC 普通错误仍使用 provider 错误码', async () => {
       () => callMcpTool('https://example.invalid/mcp', 'test-api-key', 'web_search_prime', { search_query: 'specific topic 2026' }),
       (error: any) => {
         assert.equal(error.code, ZHIPU_PROVIDER_ERROR_CODE)
-        assert.match(error.message, /temporary upstream failure/)
+          // V9 契约：错误消息为固定分类文案，上游原始 message 不再透传（仅存 non-enumerable detail）。
+          assert.match(error.message, /web_search_prime 调用失败/)
+          assert.doesNotMatch(error.message, /temporary upstream failure/)
         return true
       },
     )

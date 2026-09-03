@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { addManagedRow, hasManagedRow, hotRowBlock, patchPath, removeManagedRow } from '../bin/patch-row.mjs'
+import { addManagedRow, hasManagedRow, hotRowBlock, patchPath, removeManagedRow, validateProfileName } from '../bin/patch-row.mjs'
 import { BRIDGE_ROW_ID, BUNDLE_ROW_ID, HOT_ROW_ID, ROW_BEGIN, ROW_END } from '../bin/cli/constants.mjs'
 import { BUNDLE_ROW_ID as HOST_BUNDLE, BRIDGE_ROW_ID as HOST_BRIDGE, HOT_ROW_ID as HOST_HOT, ROW_BEGIN as HOST_ROW_BEGIN, ROW_END as HOST_ROW_END } from '../constants.js'
 
@@ -100,4 +100,12 @@ test('CLI 与 host 两侧行常量保持一致(有意双份,值必须同步)', (
   assert.equal(BRIDGE_ROW_ID, HOST_BRIDGE)
   assert.equal(ROW_BEGIN, HOST_ROW_BEGIN)
   assert.equal(ROW_END, HOST_ROW_END)
+})
+
+test('profile 名称拒绝路径穿越并接受合法 flat 名称', () => {
+  for (const invalid of ['', '..', '.', 'a/b', 'a\\b', 'C:/absolute', 'node_modules']) {
+    assert.throws(() => validateProfileName(invalid), /invalid profile name.*web/)
+  }
+  assert.equal(validateProfileName('web'), 'web')
+  assert.equal(validateProfileName('my-profile'), 'my-profile')
 })

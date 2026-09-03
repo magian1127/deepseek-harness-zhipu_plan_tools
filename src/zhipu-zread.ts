@@ -13,6 +13,7 @@ import { callMcpTool, contentText } from './mcp-http.js'
 import type { Disposer, HostContext, ToolDefinitionShape, ToolsService } from './types.js'
 import type { ZhipuSettings } from './settings-schema.js'
 import type { SettingsGetter } from './zhipu-search.js'
+import { registerWithTakeover } from './registration.js'
 
 /** zread 参数校验:repo_name 必须是 owner/repo。 */
 const REPO_NAME_PATTERN = /^[\w.-]+\/[\w.-]+$/
@@ -194,15 +195,9 @@ export function installZhipuZreadTools(ctx: HostContext, getSettings: SettingsGe
     }),
   ]
 
-  const disposers: Array<() => void> = []
-  for (const definition of definitions) {
-    try {
-      disposers.push(tools.register(definition))
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (!/already registered|duplicate/i.test(message)) throw error
-      // 幂等:已注册(双行并存)时跳过,由已注册实例承担。
-    }
-  }
+  const disposers = definitions.map((definition) => registerWithTakeover(
+    () => tools.register(definition),
+    `tool:${definition.name}`,
+  ))
   return () => { for (const dispose of disposers) dispose() }
 }

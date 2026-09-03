@@ -89,3 +89,11 @@
 本插件提交审核前至少运行 `npm run typecheck`、`npm run build`、`npm test`、`npm run verify`；发布前再执行 [`release.md#发布前验证`](release.md#发布前验证) 的完整序列和打包检查。
 
 若任一步失败，先定位失败原因；不要用重启、跳过检查或重复执行掩盖问题。
+
+## 安全审计（2026-09）
+
+项目专属要点（完整清单见工作区根 `docs/audit-2026-09.md`，勿在此复制）：
+
+- 已确认高危：HTTP 回退无 DNS rebinding 防护（公网域名二次解析到内网不设防，需连接前解析并 pin IP）；duplicate 注册被当成功返回 no-op disposer（HMR/双行下旧 Fiber 卸载后 provider/tool 永久消失）。
+- 中危：回退超时不覆盖 `credentials.resolve`（卡死占满并发槽）；MCP 错误把上游响应体原样进 error/cause（条件性凭据泄漏）；外部标题/正文/URL 直接拼 Markdown 工具输出（无不可信内容隔离）；CLI `--profile` 未校验。
+- 正面范例（保持）：`self-hot-reload.ts` 全能力探测+静默降级；`web.config` 复杂 patch 不走 dsh-zh simple reconcile（安装只走项目 CLI 全量通道）。

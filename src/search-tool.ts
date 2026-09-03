@@ -7,6 +7,8 @@
 import type { Disposer, HostContext } from './types.js'
 import type { ZhipuSettings } from './settings-schema.js'
 import type { SettingsGetter } from './zhipu-search.js'
+import { registerWithTakeover } from './registration.js'
+import { escapeMarkdownLinkText, foldExternalInlineText, sanitizeExternalUrl } from './util.js'
 
 const SEARCH_MAX_QUERIES = 4
 const SEARCH_MAX_RESULTS = 8
@@ -267,14 +269,12 @@ export function installSearchToolReplacementForAgent(
     },
   }
 
+  disposers.push(registerWithTakeover(
+    () => tools.register(definition),
+    'tool:web_search',
+  ))
+
   try {
-    try {
-      disposers.push(tools.register(definition))
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (/already registered|duplicate/i.test(message)) return undefined
-      throw error
-    }
 
     if (systemPrompt !== undefined && systemPrompt !== null) {
       disposers.push(systemPrompt.section({
@@ -296,7 +296,7 @@ export function installSearchToolReplacementForAgent(
   }
 }
 
-/** 结果渲染沿用内置工具的信息结构。 */
+/** 结果渲染沿用内置工具的信息结构；外部 title/snippet/URL 经不可信内容净化（V11）。 */
 function formatResult(value: unknown): string {
   const result = value as SearchResult | null | undefined
   if (result === null || result === undefined) return ''
@@ -307,7 +307,12 @@ function formatResult(value: unknown): string {
       const title = typeof source.title === 'string' && source.title.length > 0 ? source.title : source.url
       const meta = [source.snippet, source.publishedAt === undefined ? undefined : `(${source.publishedAt})`]
         .filter((item): item is string => typeof item === 'string' && item.length > 0)
-      return `- [${title}](${source.url})${meta.length > 0 ? ` — ${meta.join(' ')}` : ''}`
+        .map((item) => foldExternalInlineText(item))
+      const safeUrl = sanitizeExternalUrl(String(source.url ?? ''))
+      const safeTitle = escapeMarkdownLinkText(String(title ?? ''))
+      // URL 未过白名单（非 http(s)/含控制字符/结构异常）时退化为纯文本，不构造可点击链接。
+      const link = safeUrl === null ? safeTitle : `[${safeTitle}](${safeUrl})`
+      return `- ${link}${meta.length > 0 ? ` — ${meta.join(' ')}` : ''}`
     })
     parts.push(`Sources:\n${lines.join('\n')}`)
   } else if (result.content === undefined || result.content.length === 0) {

@@ -46,6 +46,14 @@ function contentFilteredError(): ZhipuError {
     ZHIPU_CONTENT_FILTERED_CODE,
   )
 }
+/** 构造不携带上游正文的错误;详细内容仅供本地排障且不可枚举。 */
+function upstreamError(message: string, code: string, detail?: string): ZhipuError {
+  const error = new ZhipuError(message, code)
+  if (detail !== undefined && detail.length > 0) {
+    Object.defineProperty(error, 'detail', { value: detail.slice(0, 300), enumerable: false })
+  }
+  return error
+}
 
 /** 单次 HTTP 请求:组合外部 signal 与本地超时,任一触发即中止;finally 清理。 */
 async function request(
@@ -84,27 +92,31 @@ async function request(
     if (!response.ok) {
       const text = await response.text().catch(() => '')
       if (containsContentFilterMarker(text)) throw contentFilteredError()
-      throw new ZhipuError(
-        `[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP HTTP ${response.status}: ${text.slice(0, 300)}`,
-        ZHIPU_PROVIDER_ERROR_CODE,
-      )
+        throw upstreamError(
+          `[${ZHIPU_PROVIDER_ERROR_CODE}] MCP gateway error (HTTP ${response.status})`,
+          ZHIPU_PROVIDER_ERROR_CODE,
+          text,
+        )
     }
     const text = await response.text()
     return { text, sessionId: response.headers.get('mcp-session-id') ?? undefined }
-  } catch (error: unknown) {
-    if (signal?.aborted === true) throw error
-    if (error instanceof ZhipuError && error.code === ZHIPU_CONTENT_FILTERED_CODE) throw error
-    if (timedOut) {
-      throw new ZhipuError(
-        `[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP 请求超过 ${timeoutMs}ms`,
+    } catch (error: unknown) {
+      if (signal?.aborted === true) throw error
+      if (error instanceof ZhipuError && error.code === ZHIPU_CONTENT_FILTERED_CODE) throw error
+      if (timedOut) {
+        throw new ZhipuError(
+          `[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP 请求超过 ${timeoutMs}ms`,
+          ZHIPU_PROVIDER_ERROR_CODE,
+          { cause: error },
+        )
+      }
+      if (isAbortError(error)) throw error
+      throw upstreamError(
+        `[${ZHIPU_PROVIDER_ERROR_CODE}] MCP gateway request failed`,
         ZHIPU_PROVIDER_ERROR_CODE,
-        { cause: error },
+        error instanceof Error ? error.message : String(error),
       )
-    }
-    if (isAbortError(error)) throw error
-    const message = error instanceof Error ? error.message : String(error)
-    throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP 请求失败: ${message}`, ZHIPU_PROVIDER_ERROR_CODE, { cause: error })
-  } finally {
+    } finally {
     clearTimeout(timer)
     if (signal !== undefined) signal.removeEventListener('abort', onExternalAbort)
   }
@@ -148,15 +160,12 @@ function frameResult(frame: any | undefined, context: string): any {
   }
   if (frame.error !== undefined) {
     if (containsContentFilterMarker(frame.error)) throw contentFilteredError()
-    throw new ZhipuError(
-      `[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${JSON.stringify(frame.error).slice(0, 300)}`,
-      ZHIPU_PROVIDER_ERROR_CODE,
-    )
+      throw upstreamError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}`, ZHIPU_PROVIDER_ERROR_CODE, JSON.stringify(frame.error))
   }
   const result = frame.result
   if (result === undefined) {
     if (containsContentFilterMarker(frame)) throw contentFilteredError()
-    throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${JSON.stringify(frame).slice(0, 300)}`, ZHIPU_PROVIDER_ERROR_CODE)
+      throw upstreamError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}`, ZHIPU_PROVIDER_ERROR_CODE, JSON.stringify(frame))
   }
   if (result.isError === true) {
     if (containsContentFilterMarker(result)) throw contentFilteredError()
@@ -192,10 +201,11 @@ export async function createMcpSession(
       const sessionId = init.sessionId
       if (sessionId === undefined) {
         if (containsContentFilterMarker(init.text)) throw contentFilteredError()
-        throw new ZhipuError(
-          `[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 MCP 初始化失败: ${init.text.slice(0, 300)}`,
-          ZHIPU_PROVIDER_ERROR_CODE,
-        )
+          throw upstreamError(
+            `[${ZHIPU_PROVIDER_ERROR_CODE}] MCP gateway initialization failed`,
+            ZHIPU_PROVIDER_ERROR_CODE,
+            init.text,
+          )
       }
 
       try {

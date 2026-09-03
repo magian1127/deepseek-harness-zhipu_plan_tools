@@ -63,7 +63,7 @@ export function installZhipuSearchProvider(ctx: HostContext, getSettings: Settin
         if (signal?.aborted === true || isAbortError(error)) throw error
         if (error instanceof ZhipuError && error.code === ZHIPU_CONTENT_FILTERED_CODE) throw error
         throw new ZhipuError(
-          `[${WEB_PROVIDER_ERROR_CODE}] 智谱搜索请求失败: ${error instanceof Error ? error.message : String(error)}`,
+            `[${WEB_PROVIDER_ERROR_CODE}] 智谱搜索请求失败 (${SEARCH_MCP_URL}): ${error instanceof Error ? error.message : String(error)}`,
           WEB_PROVIDER_ERROR_CODE,
           { cause: error },
         )

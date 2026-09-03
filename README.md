@@ -5,7 +5,7 @@
 [中文](README.md) · [English](README.en.md)
 
 <p align="center">
-  <img alt="版本 0.1.3" src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-0.1.3-5965d8">
+  <img alt="版本 0.1.4" src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-0.1.4-5965d8">
   <img alt="功能 搜索/读取/仓库" src="https://img.shields.io/badge/%E5%8A%9F%E8%83%BD-%E6%90%9C%E7%B4%A2%20%C2%B7%20%E8%AF%BB%E5%8F%96%20%C2%B7%20%E4%BB%93%E5%BA%93-4aa3ff">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-3b7a57">
 </p>
@@ -22,7 +22,7 @@
 | --- | --- | --- |
 | 启用智谱工具 | 开 | 总开关；关闭后搜索/读取进入兼容回退，仓库工具和相关提示卸载，设置入口保留 |
 | 联网搜索（接管 `web_search`） | 开 | 通过智谱 `web_search_prime` 搜索，并替换模型可见的内置搜索说明 |
-| 网页读取（接管 `web_fetch`） | 开 | 通过智谱 `webReader` 返回 Markdown；DSH 默认关闭 `web_fetch`，仍需另行启用该工具 |
+| 网页读取（接管 `web_fetch`） | 开 | 通过智谱 `webReader` 返回 Markdown；DSH v0.1.2 起 Web 端预设默认提供 `web_fetch`，安装后即生效 |
 | 开源仓库工具 | 关 | 注册 `github_search_doc`、`github_get_repo_structure`、`github_read_file` |
 | 提示词中文化 | 关 | 将插件注入的提示与工具说明从默认英文切换为中文；工具名不变 |
 | 凭据引用名 | `ZAI_CODING_CN_API_KEY` | 只保存引用名，不保存 API Key |
@@ -45,7 +45,7 @@
 
 ## 环境要求
 
-- DeepSeek Harness Web GUI，profile `web`，≥ `0.1.2-alpha.1`
+- DeepSeek Harness Web GUI，profile `web`，≥ `0.1.2-rc.1`
 - Node.js `^22.19.0 || >=24.0.0`
 - 智谱 GLM Coding Plan API Key；默认引用名为 `ZAI_CODING_CN_API_KEY`
 
@@ -88,10 +88,14 @@ npx -y deepseek-harness-zhipu_plan_tools status --profile web
 插件零额外配置即可取到智谱 Coding Plan Key；若你在环境变量中配置了别的名字，可在设置卡片中
 把 `credentialRef` 改成对应名字。
 
-## 启用 web_fetch（网页读取）
+## web_fetch（网页读取）可用性
 
-DSH 预设默认关闭 `web_fetch`（`tool-web` 行 `fetch: false`），本插件不擅自改该开关。
-需要网页读取时，在你的 profile patch（`~/.dsh/profiles/web/cordis.patch.yml`）加：
+自 DSH v0.1.2 起，Web 端 agent 预设（standard / ptc / codex）默认在模型工具目录中提供
+`web_fetch`。本插件只接管其后端 provider、不改工具开关：安装挂载后 `web_fetch` 默认即走
+智谱 `webReader`，无需额外启用步骤。
+
+旧版 DSH（Web 组合尚未默认提供 `web_fetch` 时）才需要在 profile patch
+（`~/.dsh/profiles/web/cordis.patch.yml`）中启用：
 
 ```yaml
 - id: tool-web
@@ -99,7 +103,8 @@ DSH 预设默认关闭 `web_fetch`（`tool-web` 行 `fetch: false`），本插�
     fetch: true
 ```
 
-之后 `web_fetch` 工具出现并自动走智谱后端。不启用则本功能零感知。
+数据边界：开启态抓取在智谱云端执行（本地不连接目标地址，URL 会提交给智谱 MCP）；关闭态
+回退本地受限 HTTP(S) 抓取，详见[行为契约](docs/behavior.md#web_fetch-启用边界)。
 
 ## 设置与数据
 

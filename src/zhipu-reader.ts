@@ -6,8 +6,8 @@
  * 官方 web_fetch 工具层直通,不再本地 turndown 转换,质量优于内置 http
  * provider。
  *
- * 跟随部署开关:DSH 预设 tool-web 行默认 fetch: false,本 provider 注册
- * 但无感知;部署启用 fetch 后自动接管(见 cordis.patch.yml 注释)。
+ * 跟随部署开关:DSH v0.1.2 起 Web 端 agent 预设默认提供 web_fetch 工具,
+ * 本 provider 挂载后即接管其后端;旧版 DSH 需部署层启用 fetch(见 cordis.patch.yml 注释)。
  *
  * 关闭回退:enabled/reader 关闭后,fetch() 内部回退到受限 HTTP(S) 文本抓取
  * (http-fallback),不再报后端不可用。

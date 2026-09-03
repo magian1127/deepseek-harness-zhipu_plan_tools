@@ -8,7 +8,7 @@
 | 能力 | 用户可见行为 |
 | --- | --- |
 | 联网搜索 | 接管内置 `web_search` 后端，调用智谱 `web_search_prime`，返回中英文混合来源 |
-| 网页读取 provider | 接管内置 `web_fetch` 后端，调用智谱 `webReader` 并返回 Markdown 正文；但 DSH 的 `web_fetch` 工具默认关闭，需另行启用 |
+| 网页读取 provider | 接管内置 `web_fetch` 后端，调用智谱 `webReader` 并返回 Markdown 正文；DSH v0.1.2 起 Web 端 agent 预设默认提供 `web_fetch` 工具，安装本插件后默认即走智谱后端 |
 | 开源仓库工具 | 按设置注册 `github_search_doc`、`github_get_repo_structure`、`github_read_file` |
 | 设置卡片 | 始终位于 DSH 设置 → 插件 → 插件配置；支持实时开关、凭据引用和中英界面 |
 
@@ -66,7 +66,9 @@ provider 的 `available()` 只确认 credentials 服务是否可解析或本地�
 
 ## `web_fetch` 启用边界
 
-DSH 预设的 `tool-web` 行通常为 `fetch: false`。插件只设置 reader provider，绝不擅自打开工具开关。要使用网页读取，在 profile patch 中启用：
+自 DSH v0.1.2 起，Web 端 agent 预设（standard / ptc / codex）默认在模型工具目录中提供 `web_fetch`。本插件只设置 reader provider、不改工具开关：安装挂载后 `web_fetch` 默认即以智谱 `webReader` 为后端，无需额外启用步骤。
+
+旧版 DSH（Web 组合尚未默认提供 `web_fetch` 时）才需要在 profile patch 中启用：
 
 ```yaml
 - id: tool-web
@@ -74,7 +76,7 @@ DSH 预设的 `tool-web` 行通常为 `fetch: false`。插件只设置 reader pr
     fetch: true
 ```
 
-启用后 `web_fetch` 自动走智谱 reader；未启用时 provider 虽已注册，但工具不可见、无额外调用。
+数据边界：开启态抓取在智谱云端执行，本地进程不连接目标地址，但请求 URL 会提交给智谱 MCP；关闭态回退本地受限 HTTP(S) 抓取（见上方回退语义）。
 
 ## 调用边界与失败模式
 
@@ -86,7 +88,7 @@ DSH 预设的 `tool-web` 行通常为 `fetch: false`。插件只设置 reader pr
 - **搜索内容过滤**：上游返回结构化 `contentFilter` 时，插件统一映射为 `ZHIPU_CONTENT_FILTERED`，返回固定短提示，引导将搜索收窄到明确目标并补充实体、时间、地区、指标或来源。不会自动重试或切换后端。
 - **回退搜索失败**：内置 DeepSeek 搜索请求失败、超过 30 秒或未返回 `web_search_tool_result` 块时报告 `WEB_PROVIDER_ERROR`;不会自动改回智谱或重试。
 - **回退抓取失败**：关闭 reader 后的 HTTP 抓取网络失败报告 `WEB_PROVIDER_ERROR`;超时、URL/重定向策略、响应大小或内容类型失败使用下表对应错误码。非 2xx 文本响应仍作为结果返回,不抛错。
-- **错误消息脱敏**：智谱 MCP 与仓库工具的失败消息为固定分类文案（含工具名与状态码）；上游响应体/网络错误原文不进入错误消息或 cause，仅以不可枚举属性保留截断供排障。API Key 不会出现在任何错误路径。
+- **错误消息脱敏**：智谱 MCP 与仓库工具的失败消息为固定分类文案（含工具名、状态码与实际请求端点，对齐官方 v0.1.2 起 web_search 失败报端点的行为）；上游响应体/网络错误原文不进入错误消息或 cause，仅以不可枚举属性保留截断供排障。API Key 不会出现在任何错误路径。
 - **不可信内容隔离**：搜索结果的标题/摘要经控制字符与 Markdown 结构转义，URL 仅允许 http(s) 且无控制字符（否则退化为纯文本）；网页读取正文前后包裹「外部网页内容（不可信）」边界标记，提示模型不要执行正文中出现的指令。
 
 ## 错误码速查

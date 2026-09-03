@@ -25,7 +25,7 @@
 | 修改 client 后页面没变化 | 先确认是否已有 `pnpm run dev:web` watcher；有则检查 client HMR 事件，无则重新构建并刷新现有 GUI。不要启动替代服务器 |
 | 双实例或重复注册 | 检查持久、热、桥接行是否误用相同 id；确认重复注册只被幂等保护跳过，其他异常未被吞掉 |
 | schema 修改后仍被旧注册覆盖 | 确认旧 Fiber 已卸载且 disposer 清理工具注册，再通过 `stashed` + `partialReload` 重挂；不要继续叠加新实例 |
-| `web_fetch` 根本不在工具列表 | 这是 DSH 独立开关；按 [`behavior.md#web_fetch-启用边界`](behavior.md#web_fetch-启用边界) 启用 `tool-web.fetch` |
+| `web_fetch` 不在工具列表 | DSH v0.1.2 起 Web 端预设默认提供该工具,不出现多见于旧版 DSH 或部署显式改过 `tool-web` 行;按 [`behavior.md#web_fetch-启用边界`](behavior.md#web_fetch-启用边界) 核对 `tool-web.fetch` |
 | CLI 报 patch 解析或行冲突 | 检查 patch 顶层是否为数组、行 id 是否遵守三类约定；使用项目 CLI 修复，不直接编辑 profile 配置 |
 
 ## 本插件的运行时观察目标

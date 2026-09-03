@@ -5,7 +5,7 @@
 [中文](README.md) · [English](README.en.md)
 
 <p align="center">
-  <img alt="version 0.1.3" src="https://img.shields.io/badge/version-0.1.3-5965d8">
+  <img alt="version 0.1.4" src="https://img.shields.io/badge/version-0.1.4-5965d8">
   <img alt="features search/reader/repo" src="https://img.shields.io/badge/features-search%20%C2%B7%20reader%20%C2%B7%20repo-4aa3ff">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-3b7a57">
 </p>
@@ -20,7 +20,7 @@ Expand **Zhipu Tools** under **DSH Settings → Plugins → Plugin configuration
 | --- | --- | --- |
 | Enable Zhipu tools | on | Master switch; off enters search/reader compatibility fallbacks and unregisters repo tools and related guidance while keeping the card |
 | Web search (takes over `web_search`) | on | Routes search through Zhipu `web_search_prime` and replaces the model-visible built-in search guidance |
-| Web reader (takes over `web_fetch`) | on | Routes reads through Zhipu `webReader`; DSH still keeps the `web_fetch` tool itself off by default |
+| Web reader (takes over `web_fetch`) | on | Routes reads through Zhipu `webReader`; since DSH v0.1.2 the Web agent presets ship `web_fetch` by default, so it takes effect right after install |
 | Repository tools | off | Adds `github_search_doc`, `github_get_repo_structure`, and `github_read_file` |
 | Chinese prompts | off | Switches plugin-injected guidance and tool descriptions from the default English to Chinese; tool names stay unchanged |
 | Credential reference | `ZAI_CODING_CN_API_KEY` | Stores only the credential reference name, never the API key |
@@ -29,7 +29,7 @@ The card starts collapsed and ends with Restore defaults / Discard changes / Sav
 
 ## Requirements
 
-- DeepSeek Harness Web GUI, profile `web`, ≥ `0.1.2-alpha.1`
+- DeepSeek Harness Web GUI, profile `web`, ≥ `0.1.2-rc.1`
 - Node.js `^22.19.0 || >=24.0.0`
 - A Zhipu GLM Coding Plan API key referenced by `ZAI_CODING_CN_API_KEY` by default
 
@@ -66,9 +66,11 @@ Before calling the tools:
 
 The provider and this plugin then use the same credential reference. If your key uses a different environment-variable name, set that name as `credentialRef` in the plugin card. Resolution order and security guarantees are defined in [Credentials and data boundaries](docs/behavior.md#凭据与数据边界).
 
-## Enable `web_fetch`
+## `web_fetch` availability
 
-DSH normally keeps the `web_fetch` tool off. This plugin supplies its backend but does not change that independent switch. Enable it in the profile patch:
+Since DSH v0.1.2, the Web agent presets (standard / ptc / codex) include `web_fetch` in the model tool catalog by default. This plugin swaps only the backend provider and never touches that switch: once installed, `web_fetch` routes through the Zhipu `webReader` with no extra step.
+
+Only older DSH builds (whose Web composition did not ship `web_fetch`) need the profile-patch enablement:
 
 ```yaml
 - id: tool-web
@@ -76,7 +78,7 @@ DSH normally keeps the `web_fetch` tool off. This plugin supplies its backend bu
     fetch: true
 ```
 
-Once enabled, `web_fetch` automatically uses the Zhipu reader. See the authoritative [enablement boundary](docs/behavior.md#web_fetch-启用边界).
+Data boundary: with the reader on, fetching happens on Zhipu's cloud (the local process never connects to the target; the URL is submitted to the Zhipu MCP). With the reader off, it falls back to the local bounded HTTP(S) fetch. See the authoritative [enablement boundary](docs/behavior.md#web_fetch-启用边界).
 
 ## Settings and data
 

@@ -90,7 +90,7 @@ async function deepseekSearchOnce(ctx: HostContext, query: string, signal?: Abor
     })
   } catch (error: unknown) {
     if (wasAborted(signal) || isAbortError(error)) throw error
-    throw new ZhipuError(`[${WEB_PROVIDER_ERROR_CODE}] 内置 DeepSeek 搜索请求失败: ${error instanceof Error ? error.message : String(error)}`, WEB_PROVIDER_ERROR_CODE, { cause: error })
+      throw new ZhipuError(`[${WEB_PROVIDER_ERROR_CODE}] 内置 DeepSeek 搜索请求失败 (${endpoint}): ${error instanceof Error ? error.message : String(error)}`, WEB_PROVIDER_ERROR_CODE, { cause: error })
   }
 
   if (!response.ok) {

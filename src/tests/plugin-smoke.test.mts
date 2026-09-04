@@ -133,6 +133,27 @@ function createMockContext(options?: MockOptions): {
   }
 }
 
+test('open-design profile 的启动信息写 stderr，不污染 JSONL stdout', () => {
+  const originalArgv = [...process.argv]
+  const originalLog = console.log
+  const originalError = console.error
+  const stdout: string[] = []
+  const stderr: string[] = []
+  try {
+    process.argv.splice(0, process.argv.length, process.execPath, 'dsh', '--profile', 'open-design', '--stdio')
+    console.log = (...values: unknown[]) => { stdout.push(values.map(String).join(' ')) }
+    console.error = (...values: unknown[]) => { stderr.push(values.map(String).join(' ')) }
+    apply(createMockContext().ctx, {})
+  } finally {
+    process.argv.splice(0, process.argv.length, ...originalArgv)
+    console.log = originalLog
+    console.error = originalError
+  }
+  assert.deepEqual(stdout, [])
+  assert.equal(stderr.length, 1)
+  assert.match(stderr[0], /host 已装配/)
+})
+
 test('apply 装配:providers 常驻;zread 默认关闭;清理全部可逆', () => {
   const mock = createMockContext()
   apply(mock.ctx, {})

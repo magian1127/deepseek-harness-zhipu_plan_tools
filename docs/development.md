@@ -71,6 +71,7 @@
 
 - 持续开发使用 CLI 的 `--link <项目路径>`；`.npmrc` 的 `omit=peer` 用于避免 link 安装时在插件根生成第二份宿主 peer。
 - 不在文档或脚本硬编码本机绝对路径。
+- Open Design 使用独立 `open-design` profile；安装/验收不能以 `headless` 代替。其 probe/models/stdio stdout 是严格 JSONL，`src/index.ts` 的信息日志在该 profile 必须写 stderr，不能污染协议帧。
 
 ### 上游异常分类
 
@@ -82,10 +83,10 @@ zread 上游对未收录/不存在的仓库在 `tools/call` 的 `isError` conten
 ## 测试策略
 
 - **纯逻辑单测**：覆盖设置归一化、schema、凭据文件解析、patch 行、DeepSeek/HTTP 回退策略和搜索合并边界。
-- **假 Context 装配测试**：直接调用插件 `apply(fakeCtx)`，验证 provider、Agent scope 可见性、动态装卸、HMR 单注册与可逆清理。
+- **假 Context 装配测试**：验证 provider、Agent scope、动态装卸、HMR、可逆清理，以及 `open-design` profile 信息日志不进入 stdout。
 - **mock MCP 端到端**：承接真实 initialize → initialized → tools/call → DELETE 请求形状，覆盖 search/reader 主路径、SSE/JSON、错误映射、取消、超时和清理。
 - **构建契约验证**：检查产物存在、Node 语法、经典 client bundle 格式和 CLI usage。
-- **真实管线验收**：涉及服务形状、模型参数或远端 MCP 时，以现有 DSH GUI 中的真实调用为最终依据；不得为验收重启 DSH。
+- **真实管线验收**：Web 用现有 GUI；Open Design 用 `dsh --profile open-design --probe/--stdio` 检查 stdout 纯 JSONL，再检查新 `od-*` 会话首个 `request/header`。不得为验收重启 DSH。
 
 ## 验证分层
 

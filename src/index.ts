@@ -25,6 +25,18 @@ import { installZhipuZreadTools } from './zhipu-zread.js'
 export const name = PKG
 export const inject = ['web', 'tools', 'systemPrompt', 'settings', 'agents']
 
+/** Open Design 的 probe/models/stdio 都把 stdout 保留给严格 JSONL 协议。 */
+function isOpenDesignProfile(argv: readonly string[] = process.argv): boolean {
+  const flag = argv.indexOf('--profile')
+  if (flag >= 0 && argv[flag + 1] === 'open-design') return true
+  return argv.includes('--profile=open-design')
+}
+
+function info(message: string): void {
+  if (isOpenDesignProfile()) console.error(message)
+  else console.log(message)
+}
+
 /** github_* 工具的系统提示指引(随 zread 开关与工具同装卸;中英文随 zhPrompt 切换)。 */
 const ZREAD_PROMPT_SECTIONS: Array<{ name: string; en: string; zh: string }> = [
   {
@@ -286,5 +298,5 @@ export function apply(ctx: HostContext, config: Record<string, unknown> = {}): v
   // 5) 自监视热重载:lib/index.js 变化 → partialReload。
   installSelfHotReload(ctx, import.meta.url)
 
-  console.log(`[${PKG}] host 已装配: search=${String(current.search)} reader=${String(current.reader)} zread=${String(current.zread)} (locale ns ${LOCALE_NAMESPACE})`)
+  info(`[${PKG}] host 已装配: search=${String(current.search)} reader=${String(current.reader)} zread=${String(current.zread)} (locale ns ${LOCALE_NAMESPACE})`)
 }

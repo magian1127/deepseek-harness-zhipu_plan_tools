@@ -10,7 +10,13 @@
 | 联网搜索 | 接管内置 `web_search` 后端，调用智谱 `web_search_prime`，返回中英文混合来源 |
 | 网页读取 provider | 接管内置 `web_fetch` 后端，调用智谱 `webReader` 并返回 Markdown 正文；DSH v0.1.2 起 Web 端 agent 预设默认提供 `web_fetch` 工具，安装本插件后默认即走智谱后端 |
 | 开源仓库工具 | 按设置注册 `github_search_doc`、`github_get_repo_structure`、`github_read_file` |
-| 设置卡片 | 始终位于 DSH 设置 → 插件 → 插件配置；支持实时开关、凭据引用和中英界面 |
+| Web 设置卡片 | 仅在 `web` profile 的 DSH 设置 → 插件 → 插件配置中显示；支持实时开关、凭据引用和中英界面 |
+
+### Profile 隔离与 Open Design / headless
+
+DSH bundle 按 profile 独立组合。Open Design 实际启动 `dsh --profile open-design --stdio`，不是 stock `headless`；因此本 bundle 必须另装到 `open-design`。安装后，provider、`web_search` Agent scope 阴影和三个 `github_*` 都按本契约工作。stock `headless` 若需要，也要单独安装。
+
+同一 `${DSH_HOME:-~/.dsh}` 下各 profile 共用 settings/credentials。两个非 Web profile 不显示设置卡，但读取相同 `dsh-zhipu` 值。`open-design` stdout 仅允许 JSONL 协议帧，所以信息日志写 stderr；警告/错误本来就不写 stdout。
 
 ### 搜索工具的接管与说明替换
 
@@ -25,8 +31,8 @@
 
 ## 设置语义
 
-设置存储在 DSH `settings.yaml` 的 `dsh-zhipu` 命名空间，修改实时生效。下表严格按照
-可收缩设置卡片从上到下排列；卡片默认收起，底部为恢复默认值、放弃修改和保存：
+设置存储在 DSH `settings.yaml` 的 `dsh-zhipu` 命名空间，修改实时生效。Web GUI 中的下表严格按照
+可收缩设置卡片从上到下排列；卡片默认收起。非 Web profile 不显示卡片，但读取同一命名空间与默认值：
 
 | 字段 | 类型 | 默认值 | 语义 |
 | --- | --- | --- | --- |

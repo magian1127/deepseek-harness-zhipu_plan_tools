@@ -33,6 +33,7 @@
 - 本插件的挂载、依赖和临时行只通过项目 CLI 读写，不直接编辑；DSH 自有功能开关按用户文档配置。
 - 修改用户可见行为时，同步维护双语用户说明和 [`docs/behavior.md`](docs/behavior.md)；修改实现规则时更新 [`docs/development.md`](docs/development.md)。
 - 包格式、挂载行与本插件凭据例外见 [`docs/development.md#不可破坏的约束`](docs/development.md#不可破坏的约束)；共性 Fiber/HMR 规则见 [`../docs/`](../docs/README.md)，不要重复清单。
+- Open Design 实际运行独立 `open-design` profile（不是 `headless`）；需要本插件时必须另装到该 profile。其 probe/models/stdio stdout 是严格 JSONL，信息日志只能写 stderr。
 - 任何改动后的开发验证按 [`../docs/validation.md`](../docs/validation.md) 分层，并执行本项目 `npm run typecheck`、`npm run build`、`npm test`、`npm run verify`；发布前执行完整的 [`docs/release.md#发布前验证`](docs/release.md#发布前验证)。
 - 部署或运行异常统一从 [`docs/troubleshooting.md`](docs/troubleshooting.md) 开始排查。
 

@@ -35,7 +35,7 @@
 
 | 模块 | 契约 |
 | --- | --- |
-| `src/index.ts` | 聚合 provider、工具、system prompt、settings 与自监视热重载；所有副作用随 Fiber 清理 |
+| `src/index.ts` | 聚合 provider、工具、system prompt、settings 与自监视；在 `open-design` profile 把信息日志写 stderr，保护 stdout JSONL；副作用随 Fiber 清理 |
 | `src/credentials.ts` | 解析凭据并实现 `${DSH_HOME:-~/.dsh}` 回退；不泄露 Key |
 | `src/mcp-http.ts` | 完成 MCP 初始化、通知、工具调用和尽力清理；解析 JSON/SSE，映射稳定错误 |
 | `src/zhipu-search.ts` | provider id `zhipu-web-search-prime`；传递 `search_query` 并映射搜索来源 |

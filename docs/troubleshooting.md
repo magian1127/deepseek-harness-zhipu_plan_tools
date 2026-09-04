@@ -18,6 +18,7 @@
 | host 自监视无反应 | 查插件日志中的 HMR 服务与 `registerConfig`；确认 `ctx.effect` 返回 cleanup，而不是注册时直接执行 cleanup；确认监视的是实际文件而非跨目录 symlink |
 | `web_search` / `web_fetch` 报 provider 未注册 | 对照 `WEB_PROVIDER_CONFIGURED_MISSING`；检查插件挂载行、运行时 entries 和 provider registry，不要只检查 `cordis.patch.yml` |
 | `web_search` / `web_fetch` 报 provider unavailable | 对照 `WEB_PROVIDER_CONFIGURED_UNAVAILABLE`；依次检查 `enabled`、对应功能开关、`credentialRef` 与本地凭据可用性 |
+| Open Design 仍触发 DeepSeek 原生搜索，或请求头缺少 `github_*` | 检查 `dsh plugin --profile open-design list`，不要误查 `headless`；再用 `dsh --profile open-design --dump-default-config` 确认 `dsh-zhipu` 与 `zhipu-web-search-prime`，最后检查安装后新会话的首个 `request/header`。若 Open Design 报 JSONL 解析错误，确认 stdout 只有协议 JSON，插件信息日志应在 stderr |
 | 报凭据缺失 | 确认已添加 `zai-coding-cn`；确认设置中的引用名与环境变量或 `${DSH_HOME:-~/.dsh}/.credentials.yaml` 的 `refs` 键一致。完整解析顺序见[凭据与数据边界](behavior.md#凭据与数据边界) |
 | 报 `ZHIPU_CONTENT_FILTERED` | 将一次查询缩到一个明确目标，并补充实体、时间范围、地区、指标或来源；不要原样盲重试。行为边界见[搜索工具的接管与说明替换](behavior.md#搜索工具的接管与说明替换) |
 | 三个 `github_*` 工具对同一仓库全部失败 | 对照 `ZHIPU_REPO_NOT_FOUND`:zread 只覆盖已收录仓库;核对 `owner/repo` 是否真实存在,未收录的仓库改用 `web_fetch` 直接访问 GitHub |

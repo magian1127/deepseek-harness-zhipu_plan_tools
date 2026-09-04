@@ -45,7 +45,7 @@
 
 ## 环境要求
 
-- DeepSeek Harness Web GUI，profile `web`，≥ `0.1.2-rc.1`
+- DeepSeek Harness ≥ `0.1.2-rc.1`；Web 使用 `web`，Open Design stdio 使用 `open-design`，DSH 一次性任务可用 `headless`
 - Node.js `^22.19.0 || >=24.0.0`
 - 智谱 GLM Coding Plan API Key；默认引用名为 `ZAI_CODING_CN_API_KEY`
 
@@ -54,24 +54,37 @@
 npm 注册表安装：
 
 ```sh
-# 官方持久通道：自然下一次启动后生效
+# Web GUI：持久安装
 dsh plugin --profile web add deepseek-harness-zhipu_plan_tools
 
-# 热安装：DSH 正在运行时可立即生效
+# Open Design 的真实 stdio profile
+dsh plugin --profile open-design add deepseek-harness-zhipu_plan_tools
+
+# 可选：DSH 自带 headless
+dsh plugin --profile headless add deepseek-harness-zhipu_plan_tools
+
+# 仅用于正在运行的 Web GUI 热安装
 npx -y deepseek-harness-zhipu_plan_tools install --profile web
 ```
+
+bundle 按 profile 隔离：Open Design 实际运行 `dsh --profile open-design --stdio`，不是 `headless`。两个非 Web profile 都在下一次短进程启动时加载；`open-design` 的 stdout 是严格 JSONL，本插件信息日志会改走 stderr。
 
 本地源码联调：
 
 ```powershell
-npm install          # prepare 自动构建
+npm install
 node bin/dsh-zhipu.mjs install --profile web --link <项目绝对路径>
+dsh plugin --profile open-design add "link:<项目绝对路径>"
+dsh plugin --profile headless add "link:<项目绝对路径>"
 ```
 
-本包 patch 含 `web.config`，不符合 dsh-zh 的简单 manifest reconcile；CLI 会使用本项目的桥接/临时行策略。提示完成后仍需用 `status`、实际 provider/tool 状态和现有 GUI 确认是否挂载：
+本包 patch 含 `web.config`，项目桥接/临时行只用于 Web 热安装；其它 profile 使用官方持久通道。分别核对：
 
 ```sh
 npx -y deepseek-harness-zhipu_plan_tools status --profile web
+dsh plugin --profile open-design list
+dsh --profile open-design --dump-default-config
+dsh plugin --profile headless list
 ```
 
 ## 首次使用：添加 zai-coding-cn 提供商
@@ -87,6 +100,8 @@ npx -y deepseek-harness-zhipu_plan_tools status --profile web
 因此你只需保证 `ZAI_CODING_CN_API_KEY` 已存在于环境变量或 `~/.dsh/.credentials.yaml`，
 插件零额外配置即可取到智谱 Coding Plan Key；若你在环境变量中配置了别的名字，可在设置卡片中
 把 `credentialRef` 改成对应名字。
+
+Open Design/stock headless 没有设置页面，但同一 `${DSH_HOME:-~/.dsh}` 下共用 `settings.yaml` 与凭据：可先在 Web GUI 保存设置，后续 `open-design` / `headless` 进程读取同一 `dsh-zhipu` 命名空间。
 
 ## web_fetch（网页读取）可用性
 
@@ -120,12 +135,13 @@ DSH `settings.yaml` 的 `dsh-zhipu` 命名空间。API Key 本身不进入该命
 
 ```sh
 dsh plugin --profile web remove deepseek-harness-zhipu_plan_tools
-# 或
+dsh plugin --profile open-design remove deepseek-harness-zhipu_plan_tools
+dsh plugin --profile headless remove deepseek-harness-zhipu_plan_tools
+# 正在运行的 Web GUI 也可使用：
 npx -y deepseek-harness-zhipu_plan_tools remove --profile web
 ```
 
-卸载会清理挂载行与依赖并热卸载（运行中的 DSH 无需重启）；`settings.yaml` 中的
-`dsh-zhipu` 值可能保留，重新安装后继续生效。
+卸载按 profile 独立清理；两个短进程 profile 从下一次调用起不再加载。`settings.yaml` 中的值可能保留。
 
 ## 开发
 

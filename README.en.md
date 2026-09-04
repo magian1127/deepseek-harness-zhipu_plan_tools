@@ -29,7 +29,7 @@ The card starts collapsed and ends with Restore defaults / Discard changes / Sav
 
 ## Requirements
 
-- DeepSeek Harness Web GUI, profile `web`, ≥ `0.1.2-rc.1`
+- DeepSeek Harness ≥ `0.1.2-rc.1`; Web uses `web`, Open Design stdio uses `open-design`, and DSH one-shot tasks may use `headless`
 - Node.js `^22.19.0 || >=24.0.0`
 - A Zhipu GLM Coding Plan API key referenced by `ZAI_CODING_CN_API_KEY` by default
 
@@ -38,22 +38,37 @@ The card starts collapsed and ends with Restore defaults / Discard changes / Sav
 Published package:
 
 ```sh
+# Web GUI
 dsh plugin --profile web add deepseek-harness-zhipu_plan_tools
-# Hot-install into a running DSH instance:
+
+# Open Design's actual stdio profile
+dsh plugin --profile open-design add deepseek-harness-zhipu_plan_tools
+
+# Optional: DSH's built-in headless profile
+dsh plugin --profile headless add deepseek-harness-zhipu_plan_tools
+
+# Hot-install only into a running Web GUI
 npx -y deepseek-harness-zhipu_plan_tools install --profile web
 ```
+
+Bundles are profile-scoped. Open Design actually runs `dsh --profile open-design --stdio`, not `headless`; both non-Web profiles load on their next short-lived process. Because `open-design` reserves stdout for strict JSONL, this plugin routes informational startup logs to stderr there.
 
 Local source development:
 
 ```powershell
 npm install
 node bin/dsh-zhipu.mjs install --profile web --link <project-path>
+dsh plugin --profile open-design add "link:<project-path>"
+dsh plugin --profile headless add "link:<project-path>"
 ```
 
-This package patch includes `web.config`, so it is not compatible with dsh-zh's simple manifest reconcile. The CLI uses this project's bridge/temporary-entry strategy; after it reports completion, confirm `status`, the live provider/tool registries, and the existing GUI:
+The patch includes `web.config`; bridge/temporary rows are only for Web hot installation. Use the official persistent channel elsewhere and verify independently:
 
 ```sh
 npx -y deepseek-harness-zhipu_plan_tools status --profile web
+dsh plugin --profile open-design list
+dsh --profile open-design --dump-default-config
+dsh plugin --profile headless list
 ```
 
 ## First use: add `zai-coding-cn`
@@ -65,6 +80,8 @@ Before calling the tools:
 3. Ensure `ZAI_CODING_CN_API_KEY` exists in the environment or `${DSH_HOME:-~/.dsh}/.credentials.yaml`.
 
 The provider and this plugin then use the same credential reference. If your key uses a different environment-variable name, set that name as `credentialRef` in the plugin card. Resolution order and security guarantees are defined in [Credentials and data boundaries](docs/behavior.md#凭据与数据边界).
+
+Open Design and stock headless have no settings page, but profiles under the same `${DSH_HOME:-~/.dsh}` share `settings.yaml` and credentials. Configure Web once; `open-design` / `headless` read the same `dsh-zhipu` namespace.
 
 ## `web_fetch` availability
 
@@ -88,11 +105,13 @@ The six fields shown above are stored in that same order in the `dsh-zhipu` name
 
 ```sh
 dsh plugin --profile web remove deepseek-harness-zhipu_plan_tools
-# or
+dsh plugin --profile open-design remove deepseek-harness-zhipu_plan_tools
+dsh plugin --profile headless remove deepseek-harness-zhipu_plan_tools
+# A running Web GUI can also use:
 npx -y deepseek-harness-zhipu_plan_tools remove --profile web
 ```
 
-Removal clears the plugin's mount/dependency and hot-unloads it. Existing values under the `dsh-zhipu` settings namespace may remain for a later reinstall.
+Removal is profile-scoped; short-lived profiles stop loading it on the next invocation. Existing `dsh-zhipu` settings may remain.
 
 ## Development
 

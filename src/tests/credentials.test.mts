@@ -18,13 +18,23 @@ test.after(() => {
   else process.env.ZHIPU_TEST_KEY = savedKey
 })
 
+/** 恢复进程原始 DSH_HOME;顶层 test.after 挂在 root(进程尾),isolation=none 下会跨文件泄漏,改 env 的用例内必须自行恢复。 */
+function restoreHome(): void {
+  if (savedDshHome === undefined) delete process.env.DSH_HOME
+  else process.env.DSH_HOME = savedDshHome
+}
+
 test('dshHome:空白 DSH_HOME 视为未设置,回退 ~/.dsh', () => {
-  process.env.DSH_HOME = '  '
-  assert.ok(dshHome().endsWith('.dsh'))
-  process.env.DSH_HOME = 'C:\\tmp\\dsh-home'
-  assert.equal(dshHome(), 'C:\\tmp\\dsh-home')
-  delete process.env.DSH_HOME
-  assert.ok(dshHome().endsWith('.dsh'))
+  try {
+    process.env.DSH_HOME = '  '
+    assert.ok(dshHome().endsWith('.dsh'))
+    process.env.DSH_HOME = 'C:\\tmp\\dsh-home'
+    assert.equal(dshHome(), 'C:\\tmp\\dsh-home')
+    delete process.env.DSH_HOME
+    assert.ok(dshHome().endsWith('.dsh'))
+  } finally {
+    restoreHome()
+  }
 })
 
 test('resolveApiKey 三层:credentials 服务优先', async () => {
@@ -59,9 +69,10 @@ test('resolveApiKey 三层:credentials 服务优先', async () => {
       () => resolveApiKey(ctxNoService, 'MISSING_KEY', 'web'),
       (error: any) => error.code === 'WEB_PROVIDER_CREDENTIAL_MISSING',
     )
-  } finally {
-    rmSync(home, { recursive: true, force: true })
-  }
+    } finally {
+      restoreHome()
+      rmSync(home, { recursive: true, force: true })
+    }
 })
 
 test('credentialAvailable:env 或文件命中即 true(不发网络)', () => {
@@ -75,7 +86,8 @@ test('credentialAvailable:env 或文件命中即 true(不发网络)', () => {
     process.env.ZHIPU_TEST_KEY = 'env'
     assert.equal(credentialAvailable('ZHIPU_TEST_KEY'), true)
     delete process.env.ZHIPU_TEST_KEY
-  } finally {
-    rmSync(home, { recursive: true, force: true })
-  }
+    } finally {
+      restoreHome()
+      rmSync(home, { recursive: true, force: true })
+    }
 })

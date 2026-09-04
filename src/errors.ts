@@ -17,6 +17,8 @@ export const ZHIPU_PROVIDER_ERROR_CODE = 'ZHIPU_PROVIDER_ERROR'
 
 /** 智谱 MCP 上游内容安全检查拒绝请求。 */
 export const ZHIPU_CONTENT_FILTERED_CODE = 'ZHIPU_CONTENT_FILTERED'
+/** zread 上游未收录目标仓库(或 owner/repo 不存在)。 */
+export const ZHIPU_REPO_NOT_FOUND_CODE = 'ZHIPU_REPO_NOT_FOUND'
 export const ZHIPU_CREDENTIAL_MISSING_CODE = 'ZHIPU_CREDENTIAL_MISSING'
 export const ZHIPU_DISABLED_CODE = 'ZHIPU_DISABLED'
 

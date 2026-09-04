@@ -20,6 +20,7 @@
 | `web_search` / `web_fetch` 报 provider unavailable | 对照 `WEB_PROVIDER_CONFIGURED_UNAVAILABLE`；依次检查 `enabled`、对应功能开关、`credentialRef` 与本地凭据可用性 |
 | 报凭据缺失 | 确认已添加 `zai-coding-cn`；确认设置中的引用名与环境变量或 `${DSH_HOME:-~/.dsh}/.credentials.yaml` 的 `refs` 键一致。完整解析顺序见[凭据与数据边界](behavior.md#凭据与数据边界) |
 | 报 `ZHIPU_CONTENT_FILTERED` | 将一次查询缩到一个明确目标，并补充实体、时间范围、地区、指标或来源；不要原样盲重试。行为边界见[搜索工具的接管与说明替换](behavior.md#搜索工具的接管与说明替换) |
+| 三个 `github_*` 工具对同一仓库全部失败 | 对照 `ZHIPU_REPO_NOT_FOUND`:zread 只覆盖已收录仓库;核对 `owner/repo` 是否真实存在,未收录的仓库改用 `web_fetch` 直接访问 GitHub |
 | reader 关闭后回退抓取报 URL、重定向、大小或内容类型错误 | 对照 [`behavior.md#错误码速查`](behavior.md#错误码速查) 使用公开 HTTP(S) 文本 URL；跨源跳转应先人工核对最终地址再直接请求，不能放宽 provider 策略 |
 | 设置卡片不出现 | 请求插件 client 端点；若 404，检查 Loader `name` 是否为包名、`package.json` 的 client exports / `dsh.client` 是否完整；再检查 DSH 是否支持 `exposeToClients` 以及是否命中过负面缓存 |
 | 修改 client 后页面没变化 | 先确认是否已有 `pnpm run dev:web` watcher；有则检查 client HMR 事件，无则重新构建并刷新现有 GUI。不要启动替代服务器 |

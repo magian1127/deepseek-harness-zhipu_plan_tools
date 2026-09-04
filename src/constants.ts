@@ -6,7 +6,7 @@
 /** npm 包名,也是 loader 挂载的 name。 */
 export const PKG = 'deepseek-harness-zhipu_plan_tools'
 
-/** 挂载行 id(不可复用,见 AGENTS.md 约束 5)。 */
+/** 挂载行 id(不可复用,见 AGENTS.md 不可破坏约束)。 */
 export const BUNDLE_ROW_ID = 'dsh-zhipu'
 export const HOT_ROW_ID = 'dsh-zhipu-hot'
 export const BRIDGE_ROW_ID = 'dsh-zhipu-bridge'

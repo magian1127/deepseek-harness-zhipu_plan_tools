@@ -2,7 +2,7 @@
 //
 // 要点:不用 shell: true 拼接用户参数;PowerShell 的 .ps1 优先级、npm/pnpm
 // Node .cmd shim 直连解析;无法安全转发的参数必须失败而非静默篡改
-//(AGENTS.md 约束 16)。
+//(AGENTS.md 转发失败必须报错约束)。
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, delimiter, dirname, extname, isAbsolute, join, resolve } from 'node:path'

@@ -48,7 +48,8 @@ export async function main(): Promise<void> {
       console.warn(`[${PKG}] 警告:bundles 未包含本插件,裸 dsh plugin add 后重启也不会挂载(版本可能过旧)`)
     }
     // 防重复:运行中已挂载(任意通道)→ 只清残留热行,不写新行。
-    if (await liveGraphHasPlugin(port)) {
+    const liveHere = await liveGraphHasPlugin(port)
+    if (liveHere === true) {
       if (removeManagedRow(profile)) {
         console.log(`[${PKG}] 检测到运行中已挂载本插件;已清理临时挂载行,下次启动只走 bundle 行`)
       } else {
@@ -56,8 +57,11 @@ export async function main(): Promise<void> {
       }
       return
     }
+    if (liveHere === undefined) {
+      console.log(`[${PKG}] 自动探测未能确认挂载状态,请人工核实插件列表;按未挂载继续(写入为幂等操作)`)
+    }
     if (await serverAlive(port)) {
-      if (await liveGraphHasDshZh(port)) {
+      if ((await liveGraphHasDshZh(port)) === true) {
         // 热通道 ①:dsh-zh 在场,其 manifest reconcile(watchFile 1s 轮询 +
         // 500ms debounce,先 removed 后 added)会对刚才的 manifest 变化热挂。
         console.log(`[${PKG}] dsh web 运行中且 dsh-zh 在场:manifest 翻转已提交,约 1-3 秒内热挂载,刷新网页即生效(无需重启)`)
@@ -111,10 +115,10 @@ export async function main(): Promise<void> {
     const dshZh = await liveGraphHasDshZh(port)
     console.log(`[${PKG}] status (profile "${profile}")`)
     console.log(`  依赖:        ${dep ?? '(未安装)'}`)
-    console.log(`  运行中:      ${live ? '已挂载' : '未挂载'}`)
+    console.log(`  运行中:      ${live === true ? '已挂载' : live === false ? '未挂载' : '探测未定(请人工核实插件列表)'}`)
     console.log(`  bundle 通道: ${bundlesHasPlugin(profile) ? '已就绪(重启自动挂载)' : '未就绪'}`)
     console.log(`  临时热行:    ${hasManagedRow(profile) ? '存在(重启由幂等保护兜底)' : '无'}`)
-    console.log(`  dsh-zh:      ${dshZh ? '在场(manifest 翻转热挂通道可用)' : '不在场(热挂依赖官方 patch watcher)'}`)
+    console.log(`  dsh-zh:      ${dshZh === true ? '在场(manifest 翻转热挂通道可用)' : dshZh === false ? '不在场(热挂依赖官方 patch watcher)' : '探测未定(请人工核实)'}`)
     return
   }
   console.log(`[${PKG}] 用法:`)

@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { callMcpTool, contentText, parseRpcFrames } from '../mcp-http.js'
 import { parseMaybeDoubleEncoded } from '../util.js'
-import { ZHIPU_CONTENT_FILTERED_CODE, ZHIPU_PROVIDER_ERROR_CODE } from '../errors.js'
+import { ZHIPU_CONTENT_FILTERED_CODE, ZHIPU_PROVIDER_ERROR_CODE, ZHIPU_REPO_NOT_FOUND_CODE } from '../errors.js'
 
 test('parseRpcFrames 解析 SSE 帧', () => {
   const sse = ['event:message', 'data:{"jsonrpc":"2.0","id":1,"result":{"a":1}}', '', 'data:not-json', 'data:{"jsonrpc":"2.0","id":2,"result":{"b":2}}'].join('\r\n')
@@ -97,6 +97,34 @@ test('MCP content 块内容过滤错误同样使用固定短提示', async () =>
   }
 })
 
+test('MCP isError 工具错误为固定文案且上游文本仅存不可枚举 detail', async () => {
+  const originalFetch = globalThis.fetch
+  let call = 0
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    call += 1
+    if (init?.method === 'DELETE') return new Response('', { status: 200 })
+    if (call === 1) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'test-session' } })
+    if (call === 2) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'test-session' } })
+    return new Response(JSON.stringify({ jsonrpc: '2.0', id: 2, result: { isError: true, content: [{ type: 'text', text: 'upstream original failure text' }] } }), { status: 200 })
+  }) as typeof fetch
+  try {
+    await assert.rejects(
+      () => callMcpTool('https://example.invalid/mcp', 'test-api-key', 'web_search_prime', { search_query: 'specific topic' }),
+      (error: any) => {
+        assert.equal(error.code, ZHIPU_PROVIDER_ERROR_CODE)
+        assert.match(error.message, /web_search_prime 调用失败: 上游工具返回错误$/)
+        assert.doesNotMatch(error.message, /upstream original failure text/)
+        const descriptor = Object.getOwnPropertyDescriptor(error, 'detail')
+        assert.equal(descriptor?.enumerable, false)
+        assert.match(String(descriptor?.value ?? ''), /upstream original failure text/)
+        return true
+      },
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('MCP JSON-RPC 普通错误仍使用 provider 错误码', async () => {
   const originalFetch = globalThis.fetch
   let call = 0
@@ -154,4 +182,43 @@ test('MCP 本地超时归类为 provider 错误而不是调用方取消', async 
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('MCP zread repo-not-found 上游错误映射为 ZHIPU_REPO_NOT_FOUND 且随 zhPrompt 切换语言', async () => {
+  const originalFetch = globalThis.fetch
+  // 实测 zread 上游正文:MCP error -400 双层 JSON,内层 code 1001 / msg "target not found, error: repo not found"。
+  const inner = JSON.stringify({ code: 1001, msg: 'target not found, error: repo not found' })
+  const upstreamText = `MCP error -400: ${JSON.stringify({ error: { code: '1210', message: inner } })}`
+
+  async function expectRepoNotFound(options: { zhPrompt?: boolean }, message: RegExp): Promise<void> {
+    let call = 0
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      call += 1
+      if (init?.method === 'DELETE') return new Response('', { status: 200 })
+      if (call === 1) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'test-session' } })
+      if (call === 2) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'test-session' } })
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: 2, result: { isError: true, content: [{ type: 'text', text: upstreamText }] } }), { status: 200 })
+    }) as typeof fetch
+    try {
+      await assert.rejects(
+        () => callMcpTool('https://example.invalid/mcp', 'test-api-key', 'search_doc', { repo_name: 'owner/repo', query: 'auth callback' }, undefined, options),
+        (error: any) => {
+          assert.equal(error.code, ZHIPU_REPO_NOT_FOUND_CODE)
+          assert.match(error.message, message)
+          assert.doesNotMatch(error.message, /target not found|1210|1001/)
+          const descriptor = Object.getOwnPropertyDescriptor(error, 'detail')
+          assert.equal(descriptor?.enumerable, false)
+          assert.match(String(descriptor?.value ?? ''), /repo not found/)
+          return true
+        },
+      )
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  }
+
+  // 默认(不传 zhPrompt,search/reader 现状)与显式 true 均为中文;false 为英文。
+  await expectRepoNotFound({}, /^\[ZHIPU_REPO_NOT_FOUND\] 仓库未被智谱收录。请改用其他方式访问 GitHub。$/)
+  await expectRepoNotFound({ zhPrompt: true }, /^\[ZHIPU_REPO_NOT_FOUND\] 仓库未被智谱收录。请改用其他方式访问 GitHub。$/)
+  await expectRepoNotFound({ zhPrompt: false }, /^\[ZHIPU_REPO_NOT_FOUND\] Repository not indexed by Zhipu\. Use another way to access GitHub\.$/)
 })

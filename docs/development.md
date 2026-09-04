@@ -54,7 +54,7 @@
 ### Schema 与工具调用
 
 - 三个 `github_*` 和 scoped `web_search` 的 parameters/output 都使用纯 JSON Schema，不与 schemastery 简写混用；`required` 只放在对象层数组中。
-- scoped `web_search` 只在原工具对目标 Agent 可见时建立阴影,并保持 1–4 查询、8 来源、30 秒预算、轮询合并与同批失败取消;不能因改说明文字而退化内置执行契约。
+- scoped `web_search` 只在原工具对目标 Agent 可见时建立阴影,并保持 1–4 查询、30 秒预算、轮询合并与同批失败取消;结果上限由本插件定为 12(智谱上游固定返回 10 条,单查询全量透传,高于内置 tool-web 的 8),不能因改说明文字而退化执行契约。
 - `repo_name` 的执行校验保持 `owner/repo`；历史展示可降级，但不能放宽实际 schema。
 - 工具参数变更至少走一次 DSH 真实调用，确认实际注册的 schema，而不只验证 TypeScript。
 
@@ -75,6 +75,9 @@
 ### 上游异常分类
 
 宽泛搜索可能被上游以 `contentFilter` 拒绝，也可能返回 `No results found`。这不是判断协议参数错误的充分依据。实现只识别结构化过滤信号并映射稳定错误码；具体用户行为以 [`behavior.md#搜索工具的接管与说明替换`](behavior.md#搜索工具的接管与说明替换) 和 [`behavior.md#错误码速查`](behavior.md#错误码速查) 为准。
+zread 上游对未收录/不存在的仓库在 `tools/call` 的 `isError` content 中返回双层 JSON 错误(内层 msg 含 "repo not found")。`mcp-http` 将其映射为 `ZHIPU_REPO_NOT_FOUND` 固定文案;正则漏检时安全降级为 `ZHIPU_PROVIDER_ERROR`,不放宽脱敏边界。
+`github_*` 工具执行路径的错误消息(ZHIPU_DISABLED / ZHIPU_CREDENTIAL_MISSING / ZHIPU_PROVIDER_ERROR / ZHIPU_REPO_NOT_FOUND)随 `zhPrompt` 切换:默认英文,开启后中文;`zhPrompt` 经 `HttpOptions` 与 `resolveApiKey` 的 language 参数传入,search/reader 路径不传保持中文。
+上游 `web_search_prime` 无结果条数参数(schema 实测,`additionalProperties:false`),超量返回固定发生;搜索 provider 按 `request.maxResults` 预裁剪再返回,使 seam 的 `capSources` 不触发(seam 的 `truncated` 语义限定为 seam 自身丢弃来源,provider 预裁剪时报告 false)——对齐官方 Exa provider 的行为,UI 不再出现「来源列表已截断」。
 
 ## 测试策略
 

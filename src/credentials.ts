@@ -4,9 +4,9 @@
  * 关键修复点(沿 ZhiPu_web_search 2026-08 复盘):harness 主进程不导出
  * `DSH_HOME`,home 解析必须带 `~/.dsh` 回退,与官方 resolveDshHome 语义
  * 对齐(显式配置 > $DSH_HOME > ~/.dsh,空白视为未设置)。曾因缺此回退
- * 导致 provider 恒 unavailable(AGENTS.md 约束 11)。
+ * 导致 provider 恒 unavailable(AGENTS.md home 解析回退约束)。
  *
- * key 永不写入配置、日志或错误信息(AGENTS.md 约束 10)。
+ * key 永不写入配置、日志或错误信息(AGENTS.md 凭据不落盘约束)。
  */
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -111,6 +111,8 @@ async function resolveWithSignal(
 
 /**
  * @param scope 'web' 走官方 WebError 语义码,'tool' 走本插件码。
+ * @param language 错误消息语言('en'=英文,默认中文);仅 zread 工具路径按 zhPrompt 传入。
+ * @throws ZhipuError(*_CREDENTIAL_MISSING)三层都拿不到时。
  * @throws ZhipuError(*_CREDENTIAL_MISSING)三层都拿不到时。
  */
 export async function resolveApiKey(
@@ -118,6 +120,7 @@ export async function resolveApiKey(
   ref: string,
   scope: 'web' | 'tool',
   signal?: AbortSignal,
+  language?: 'zh' | 'en',
 ): Promise<string> {
   // 1) credentials 服务(可选服务:缺失时静默跳过)。
   const credentials = ctx?.get('credentials') as CredentialsService | undefined | null
@@ -142,11 +145,13 @@ export async function resolveApiKey(
   const fileValue = credentialInFile(ref)
   if (fileValue !== undefined && fileValue.length > 0) return fileValue
 
-  const code = scope === 'web' ? WEB_PROVIDER_CREDENTIAL_MISSING_CODE : ZHIPU_CREDENTIAL_MISSING_CODE
-  throw new ZhipuError(
-    `[${code}] 未找到凭据 ${ref},请先在凭据配置($HOME/.dsh/.credentials.yaml)或环境变量中设置对应 API Key`,
-    code,
-  )
+    const code = scope === 'web' ? WEB_PROVIDER_CREDENTIAL_MISSING_CODE : ZHIPU_CREDENTIAL_MISSING_CODE
+    throw new ZhipuError(
+      language === 'en'
+        ? `[${code}] Credential ${ref} not found. Set the API key in credentials ($HOME/.dsh/.credentials.yaml) or as an environment variable`
+        : `[${code}] 未找到凭据 ${ref},请先在凭据配置($HOME/.dsh/.credentials.yaml)或环境变量中设置对应 API Key`,
+      code,
+    )
 }
 
 function aborting(scope: 'web' | 'tool'): ZhipuError {

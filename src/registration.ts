@@ -35,14 +35,14 @@ export function registerWithTakeover<T extends Disposer>(
       if (attempts < MAX_RETRIES) {
         timer = setTimeout(() => attempt(false), RETRY_DELAY_MS)
       } else {
-        warn('duplicate registration; takeover retries exhausted')
+          // fail loud:异步重试耗尽无法让同步 apply 失败,以错误级日志显式暴露功能缺失。
+          console.error(`[dsh-zhipu] ${kind} 注册冲突:重试已耗尽(${attempts} 次),该 provider/tool 未注册`)
       }
     }
   }
 
   attempt(true)
 
-  
   if (owner === undefined && !warned) warn('duplicate registration; instance is not owner, retrying')
 
   return () => {

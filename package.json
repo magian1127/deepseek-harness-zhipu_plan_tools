@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-zhipu_plan_tools",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "description": "智谱 MCP 三件套 for DSH:联网搜索(search)、网页读取(reader)、开源仓库(zread)原生 provider 与工具,附设置页卡片。Zhipu MCP suite (web search / reader / zread) as native DSH providers and tools, with a settings card.",
   "repository": {
@@ -62,7 +62,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.cli.json --noEmit",
     "test": "npm run build && node --test \".tsbuild/tests/*.test.mjs\"",
     "verify": "node verify-build.mjs",
-    "prepare": "npm run build",
+    "prepare": "husky && npm run build",
     "prepack": "npm run build"
   },
   "keywords": [
@@ -83,6 +83,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
+    "husky": "^9.1.7",
     "tsdown": "^0.22.2",
     "typescript": "^5.8.3"
   }

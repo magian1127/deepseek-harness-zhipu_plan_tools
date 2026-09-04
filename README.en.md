@@ -5,7 +5,7 @@
 [中文](README.md) · [English](README.en.md)
 
 <p align="center">
-  <img alt="version 0.1.4" src="https://img.shields.io/badge/version-0.1.4-5965d8">
+    <img alt="version 0.1.5" src="https://img.shields.io/badge/version-0.1.5-5965d8">
   <img alt="features search/reader/repo" src="https://img.shields.io/badge/features-search%20%C2%B7%20reader%20%C2%B7%20repo-4aa3ff">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-3b7a57">
 </p>
@@ -22,7 +22,7 @@ Expand **Zhipu Tools** under **DSH Settings → Plugins → Plugin configuration
 | Web search (takes over `web_search`) | on | Routes search through Zhipu `web_search_prime` and replaces the model-visible built-in search guidance |
 | Web reader (takes over `web_fetch`) | on | Routes reads through Zhipu `webReader`; since DSH v0.1.2 the Web agent presets ship `web_fetch` by default, so it takes effect right after install |
 | Repository tools | off | Adds `github_search_doc`, `github_get_repo_structure`, and `github_read_file` |
-| Chinese prompts | off | Switches plugin-injected guidance and tool descriptions from the default English to Chinese; tool names stay unchanged |
+| Chinese prompts | off | Switches plugin-injected guidance, tool descriptions and github_* error messages from the default English to Chinese; tool names stay unchanged |
 | Credential reference | `ZAI_CODING_CN_API_KEY` | Stores only the credential reference name, never the API key |
 
 The card starts collapsed and ends with Restore defaults / Discard changes / Save. Search and reader are provider swaps, so model-facing web tool names stay unchanged; repository tools are registered natively and disappear from the model catalog when disabled. The `web_search` shadow is never registered under the **minimal preset** (the "persistent shell + str_replace_editor" two-tool composition), preserving that preset's promise. See the [behavior contract](docs/behavior.md) for query guidance, data boundaries, and errors.

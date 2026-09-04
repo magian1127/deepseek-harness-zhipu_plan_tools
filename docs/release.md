@@ -38,6 +38,14 @@ npm pack --dry-run --json
 不要在其他技术文档维护“当前版本”副本。
 
 ## 版本记录
+### 0.1.5
+
+- zread 上游"repo not found"(仓库未被收录或不存在)映射为稳定错误码 `ZHIPU_REPO_NOT_FOUND`,错误消息提示改用其他方式访问 GitHub,不再笼统折叠为"上游工具返回错误";错误脱敏边界不变,上游原文仍只存不可枚举 `detail`;
+- 同步 behavior / troubleshooting / development 文档。
+- `github_*` 工具执行路径的错误消息随 `zhPrompt` 切换:默认英文,开启后中文;search/reader 的 web 错误消息不受影响。
+- 搜索 provider 按请求 `maxResults` 预裁剪智谱超量返回的来源,seam 不再触发截断标记,UI 不再显示「来源列表已截断」。
+- scoped `web_search` 合并来源上限从 8 放宽为 12(智谱上游固定返回 10 条,单次查询全部展示给模型与来源面板)。
+
 ### 0.1.4
 
 - 对齐 DSH v0.1.2-rc.1:官方 Web 端 agent 预设默认提供 `web_fetch`,「安装后需另行启用 fetch」的旧语义全面修正(behavior / 双语 README / patch 与源码注释 / 设置卡文案 / troubleshooting),并补开启态云端抓取的数据边界说明;

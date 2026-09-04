@@ -12,7 +12,26 @@
  * (多 ~1 RTT 可接受,复用留路线图)。
  */
 import { MCP_TERMINATE_TIMEOUT_MS, MCP_TIMEOUT_MS } from './constants.js'
-import { ZhipuError, ZHIPU_CONTENT_FILTERED_CODE, ZHIPU_PROVIDER_ERROR_CODE, isAbortError } from './errors.js'
+import { ZhipuError, ZHIPU_CONTENT_FILTERED_CODE, ZHIPU_PROVIDER_ERROR_CODE, ZHIPU_REPO_NOT_FOUND_CODE, isAbortError } from './errors.js'
+import { createRequire } from 'node:module'
+
+/** MCP 响应体字节上限:超过即中止读取,防止超大响应内存放大。 */
+const MCP_MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+
+const requirePkg = createRequire(import.meta.url)
+let packageVersionCache: string | undefined
+
+/** 包版本(启动后首次调用读一次 package.json;路径不可达时回退 0.0.0)。 */
+function packageVersion(): string {
+  if (packageVersionCache !== undefined) return packageVersionCache
+  try {
+    const manifest = requirePkg('../package.json') as { version?: unknown }
+    packageVersionCache = typeof manifest.version === 'string' && manifest.version.length > 0 ? manifest.version : '0.0.0'
+  } catch {
+    packageVersionCache = '0.0.0'
+  }
+  return packageVersionCache
+}
 
 /** 一次会话的对外接口。 */
 export interface McpSession {
@@ -27,6 +46,8 @@ interface HttpOptions {
   timeoutMs?: number
   /** User-Agent 标识。 */
   userAgent?: string
+  /** 错误消息语言:false → 英文(zread 按 zhPrompt 设置传入);undefined/true → 中文(search/reader 现状)。 */
+  zhPrompt?: boolean
 }
 
 /** 检测上游的内容安全拒绝标记。 */
@@ -53,6 +74,37 @@ function upstreamError(message: string, code: string, detail?: string): ZhipuErr
     Object.defineProperty(error, 'detail', { value: detail.slice(0, 300), enumerable: false })
   }
   return error
+}
+
+/** 流式读取响应体并强制字节上限;超限抛固定文案错误(上游正文不进错误消息)。 */
+async function readBodyText(response: Response): Promise<string> {
+  const declared = response.headers.get('content-length')
+  if (declared !== null) {
+    const length = Number(declared)
+    if (Number.isFinite(length) && length > MCP_MAX_RESPONSE_BYTES) {
+      await response.body?.cancel().catch(() => {})
+      throw upstreamError(`[${ZHIPU_PROVIDER_ERROR_CODE}] MCP 响应超过 ${MCP_MAX_RESPONSE_BYTES} 字节上限`, ZHIPU_PROVIDER_ERROR_CODE)
+    }
+  }
+  if (response.body === null) return ''
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let total = 0
+  let text = ''
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > MCP_MAX_RESPONSE_BYTES) {
+        throw upstreamError(`[${ZHIPU_PROVIDER_ERROR_CODE}] MCP 响应超过 ${MCP_MAX_RESPONSE_BYTES} 字节上限`, ZHIPU_PROVIDER_ERROR_CODE)
+      }
+      text += decoder.decode(value, { stream: true })
+    }
+    return text + decoder.decode()
+  } finally {
+    await reader.cancel().catch(() => {})
+  }
 }
 
 /** 单次 HTTP 请求:组合外部 signal 与本地超时,任一触发即中止;finally 清理。 */
@@ -90,15 +142,20 @@ async function request(
       signal: controller.signal,
     })
     if (!response.ok) {
-      const text = await response.text().catch(() => '')
+      // 错误体同样受 8 MiB 上限:超大错误页不整读进内存。读取失败(非超限)回退空文本,
+      // 超限抛出的 ZhipuError 原样穿透,不掩盖为网关错误。
+      const text = await readBodyText(response).catch(function (error: unknown) {
+        if (error instanceof ZhipuError) throw error
+        return ''
+      })
       if (containsContentFilterMarker(text)) throw contentFilteredError()
-        throw upstreamError(
-          `[${ZHIPU_PROVIDER_ERROR_CODE}] MCP gateway error (HTTP ${response.status})`,
-          ZHIPU_PROVIDER_ERROR_CODE,
-          text,
-        )
+      throw upstreamError(
+        `[${ZHIPU_PROVIDER_ERROR_CODE}] MCP gateway error (HTTP ${response.status})`,
+        ZHIPU_PROVIDER_ERROR_CODE,
+        text,
+      )
     }
-    const text = await response.text()
+    const text = await readBodyText(response)
     return { text, sessionId: response.headers.get('mcp-session-id') ?? undefined }
     } catch (error: unknown) {
       if (signal?.aborted === true) throw error
@@ -117,9 +174,9 @@ async function request(
         error instanceof Error ? error.message : String(error),
       )
     } finally {
-    clearTimeout(timer)
-    if (signal !== undefined) signal.removeEventListener('abort', onExternalAbort)
-  }
+      clearTimeout(timer)
+      if (signal !== undefined) signal.removeEventListener('abort', onExternalAbort)
+    }
 }
 
 /** 从 SSE 或纯 JSON 文本解析出全部 JSON-RPC 帧。 */
@@ -153,9 +210,12 @@ function pickFrame(frames: any[], id: number): any | undefined {
   return frames.find((frame) => frame !== null && typeof frame === 'object' && (frame.result !== undefined || frame.error !== undefined))
 }
 
-/** 校验帧并返回 result;RPC error / isError:true 归类为 provider 错误。 */
+/** 校验帧并返回 result;RPC error / isError:true 归类为 provider 错误(en=英文消息,默认中文)。 */
+function frameResult(frame: any | undefined, context: string, en: boolean): any {
 function frameResult(frame: any | undefined, context: string): any {
-  if (frame === undefined) {
+    if (frame === undefined) {
+      throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${en ? 'no response' : '无响应'}`, ZHIPU_PROVIDER_ERROR_CODE)
+    }
     throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: 无响应`, ZHIPU_PROVIDER_ERROR_CODE)
   }
   if (frame.error !== undefined) {
@@ -169,9 +229,21 @@ function frameResult(frame: any | undefined, context: string): any {
   }
   if (result.isError === true) {
     if (containsContentFilterMarker(result)) throw contentFilteredError()
-    const blocks = Array.isArray(result.content) ? result.content : []
-    const msg = blocks.map((b: any) => (b === null || b === undefined ? '' : String(b.text ?? ''))).filter(Boolean).join(' ')
-    throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${msg || '未知错误'}`, ZHIPU_PROVIDER_ERROR_CODE)
+      const blocks = Array.isArray(result.content) ? result.content : []
+      const upstreamText = blocks.map((b: any) => (b === null || b === undefined ? '' : String(b.text ?? ''))).filter(Boolean).join(' ')
+      // zread 上游"仓库未收录"错误(实测正文为 MCP error -400 双层 JSON,内层 msg 含
+      // "repo not found"):映射为可操作错误码,避免模型把"仓库不存在/未收录"当成
+      // 服务故障盲目重试。漏检时安全降级为下方通用 provider 错误。
+      if (/repo\s+not\s+found/i.test(upstreamText)) {
+        throw upstreamError(
+          en
+            ? `[${ZHIPU_REPO_NOT_FOUND_CODE}] Repository not indexed by Zhipu. Use another way to access GitHub.`
+            : `[${ZHIPU_REPO_NOT_FOUND_CODE}] 仓库未被智谱收录。请改用其他方式访问 GitHub。`,
+          ZHIPU_REPO_NOT_FOUND_CODE,
+          upstreamText,
+        )
+      }
+      throw upstreamError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${en ? 'upstream tool returned an error' : '上游工具返回错误'}`, ZHIPU_PROVIDER_ERROR_CODE, upstreamText)
   }
   return result
 }
@@ -194,7 +266,7 @@ export async function createMcpSession(
         params: {
           protocolVersion: '2024-11-05',
           capabilities: {},
-          clientInfo: { name: 'dsh-zhipu', version: '0.1.0' },
+          clientInfo: { name: 'dsh-zhipu', version: packageVersion() },
         },
       })
       const init = await request(endpoint, apiKey, undefined, 'POST', initBody, options, signal)
@@ -225,7 +297,7 @@ export async function createMcpSession(
         const frames = parseRpcFrames(outcome.text)
         const frame = pickFrame(frames, 2)
         if (frame === undefined && containsContentFilterMarker(outcome.text)) throw contentFilteredError()
-        return frameResult(frame, `智谱 MCP ${tool} 调用失败`)
+          return frameResult(frame, options.zhPrompt === false ? `Zhipu MCP ${tool} call failed` : `智谱 MCP ${tool} 调用失败`, options.zhPrompt === false)
       } finally {
         // 4) DELETE 终止:尽力而为;已中止时不再等待清理(否则推迟中止结果)。
         const aborted = signal !== undefined && signal.aborted

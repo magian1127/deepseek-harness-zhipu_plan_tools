@@ -274,7 +274,7 @@ export function apply(ctx: HostContext, config: Record<string, unknown> = {}): v
       console.warn(`[${PKG}] agent-preset/selected 监听失败: ${error instanceof Error ? error.message : String(error)}`)
     }
   })
-  // 4) fiber 卸载:清理全部注册(side effects 可逆,AGENTS.md 约束 9)。
+  // 4) fiber 卸载:清理全部注册(side effects 可逆,AGENTS.md Fiber 可逆清理约束)。
   ctx.effect(() => {
     return () => {
         unmountZread()

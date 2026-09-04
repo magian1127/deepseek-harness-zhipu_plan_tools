@@ -125,6 +125,26 @@ test('HTTP 回退拒绝 DNS 解析失败', async () => {
   )
 })
 
+test('HTTP 回退拒绝 DNS 解析返回 IPv4-mapped 点分形式', async () => {
+  const lookup = async () => [{ address: '::ffff:127.0.0.1', family: 6 }]
+  await assert.rejects(
+    () => httpFetchFallback('https://mapped-loopback.example.test/', undefined, lookup),
+    (error: any) => error.code === 'WEB_BLOCKED_URL',
+  )
+})
+
+test('HTTP 回退放行 DNS 解析返回的公网 IPv4-mapped 形式', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async () => new Response('ok', { status: 200, headers: { 'content-type': 'text/plain' } })) as typeof fetch
+  try {
+    const lookup = async () => [{ address: '::ffff:93.184.216.34', family: 6 }]
+    const result = await httpFetchFallback('https://mapped-public.example.test/', undefined, lookup)
+    assert.equal(result.body.content, 'ok')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('DeepSeek citation 映射跳过 null 与畸形条目', () => {
   const snippets = citationSnippets([
     null,

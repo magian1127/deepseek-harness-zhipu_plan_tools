@@ -9,7 +9,7 @@
 import { SEARCH_MCP_URL, SEARCH_PROVIDER_ID } from './constants.js'
 import { credentialResolvable, resolveApiKey } from './credentials.js'
 import { deepseekFallbackAvailable, deepseekSearch } from './deepseek-fallback.js'
-import { WEB_PROVIDER_CREDENTIAL_MISSING_CODE, WEB_PROVIDER_ERROR_CODE, ZHIPU_CONTENT_FILTERED_CODE, ZhipuError, isAbortError } from './errors.js'
+import { WEB_PROVIDER_ERROR_CODE, ZHIPU_CONTENT_FILTERED_CODE, ZhipuError, isAbortError } from './errors.js'
 import { callMcpTool, contentText } from './mcp-http.js'
 import type { Disposer, HostContext, WebSearchProviderShape, WebService } from './types.js'
 import type { ZhipuSettings } from './settings-schema.js'
@@ -85,9 +85,16 @@ export function installZhipuSearchProvider(ctx: HostContext, getSettings: Settin
             ...(typeof it.publishedAt === 'string' && it.publishedAt.length > 0 ? { publishedAt: it.publishedAt } : {}),
           }
         })
-        .filter((s) => s.url.length > 0)
-      // maxResults 由 web seam 统一截断,provider 不重复裁剪。
-      return { sources, truncated: false }
+          .filter((s) => s.url.length > 0)
+        // 上游 web_search_prime 无结果条数参数(schema 实测,additionalProperties:false),
+        // 超量返回固定发生;按 request.maxResults 预裁剪,使 seam 的 capSources 不触发
+        // (truncated 语义限定为 seam 丢弃来源,provider 预裁剪时 seam 无丢弃,报告 false)。
+        // 被裁来源本就不会进入模型视野,无信息损失;对齐官方 Exa provider 的做法。
+        const cap = typeof request.maxResults === 'number' && request.maxResults > 0
+          ? request.maxResults
+          : undefined
+        const capped = cap !== undefined && sources.length > cap ? sources.slice(0, cap) : sources
+        return { sources: capped, truncated: false }
     },
   }
 
@@ -97,6 +104,3 @@ export function installZhipuSearchProvider(ctx: HostContext, getSettings: Settin
   )
   return () => { dispose() }
 }
-
-// 供 reader 复用的错误码再导出(保持模块自洽)。
-export { WEB_PROVIDER_CREDENTIAL_MISSING_CODE }

@@ -28,18 +28,38 @@ function isBlockedIpv4(octets: number[]): boolean {
     || (a === 198 && (b === 18 || b === 19))
 }
 
+function parseHexWord(part: string): number | undefined {
+  if (!/^[0-9a-fA-F]{1,4}$/.test(part)) return undefined
+  return Number.parseInt(part, 16)
+}
+
+/** IPv4 点分尾段(如 ::ffff:127.0.0.1 的尾段)解析为两个 16 位 word。 */
+function ipv4TailWords(part: string): number[] | undefined {
+  if (!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(part)) return undefined
+  const [a, b, c, d] = part.split('.').map((o) => Number(o)) as [number, number, number, number]
+  if (a > 255 || b > 255 || c > 255 || d > 255) return undefined
+  return [(a << 8) | b, (c << 8) | d]
+}
+
 function ipv6Words(host: string): number[] | undefined {
   const halves = host.split('::')
   if (halves.length > 2) return undefined
   const left = halves[0]?.length ? halves[0].split(':') : []
   const right = halves[1]?.length ? halves[1].split(':') : []
-  const missing = 8 - left.length - right.length
+  // IPv4 尾段占 32 位:按点分规则展开为两个 word,避免十六进制 parseInt 误读
+  // 点分段(旧实现对 ::ffff:127.0.0.1 会拼出错误地址而漏拦环回)。
+  const tail = right[right.length - 1]
+  const mapped = tail !== undefined && tail.includes('.') ? ipv4TailWords(tail) : undefined
+  if (tail !== undefined && tail.includes('.') && mapped === undefined) return undefined
+  const rightWords = mapped === undefined ? right.map(parseHexWord) : [...right.slice(0, -1).map(parseHexWord), ...mapped]
+  const leftWords = left.map(parseHexWord)
+  if (leftWords.some((word) => word === undefined) || rightWords.some((word) => word === undefined)) return undefined
+  const missing = 8 - leftWords.length - rightWords.length
+  if (missing < 0) return undefined
   if ((halves.length === 1 && missing !== 0) || (halves.length === 2 && missing < 1)) return undefined
-  const words = [...left, ...Array.from({ length: missing }, () => '0'), ...right]
-    .map((part) => Number.parseInt(part, 16))
-  return words.length === 8 && words.every((word) => Number.isInteger(word) && word >= 0 && word <= 0xffff)
-    ? words
-    : undefined
+  // :: 压缩的零组补在左右段之间,不能追加到末尾。
+  const words = [...(leftWords as number[]), ...new Array<number>(missing).fill(0), ...(rightWords as number[])]
+  return words.length === 8 ? words : undefined
 }
 
 /** 按解析出的 IP 拒绝本机、私网、保留、组播及未指定地址。 */

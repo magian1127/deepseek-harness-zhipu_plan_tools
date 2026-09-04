@@ -60,28 +60,31 @@ test('scoped web_search 保留查询上限、结果上限与轮询合并语义',
   )
 
   const result = await definition.execute({ queries: ['alpha', 'beta'] }, {})
-  assert.deepEqual(calls.map((call) => call.maxResults), [8, 8])
+    assert.deepEqual(calls.map((call) => call.maxResults), [12, 12])
   assert.deepEqual(
     result.sources.map((source: { url: string }) => source.url),
-    [
-      'https://example.com/a1', 'https://example.com/b1',
-      'https://example.com/a2', 'https://example.com/b2',
-      'https://example.com/a3', 'https://example.com/b3',
-      'https://example.com/a4', 'https://example.com/b4',
-    ],
-  )
-  assert.equal(result.truncated, true)
+      [
+        'https://example.com/a1', 'https://example.com/b1',
+        'https://example.com/a2', 'https://example.com/b2',
+        'https://example.com/a3', 'https://example.com/b3',
+        'https://example.com/a4', 'https://example.com/b4',
+        'https://example.com/a5', 'https://example.com/b5',
+        'https://example.com/a6', 'https://example.com/b6',
+      ],
+    )
+    // 双查询各 6 条去重合并后共 12 条,恰好达到上限,无丢弃。
+    assert.equal(result.truncated, false)
 
-  assert.deepEqual(
-    definition.presentCall({ queries: ['alpha', 'beta'] }),
-    { card: 'generic', title: 'alpha, beta', kind: 'search', rawInput: 'alpha, beta' },
-  )
-  const meta = definition.output.presentationMeta({ queries: ['alpha', 'beta'] }, result)
-  const view = definition.presentResult({ queries: ['alpha', 'beta'] }, { isError: false, meta })
-  assert.equal(view.card, 'web')
-  assert.equal(view.kind, 'search')
-  assert.equal(view.sources.length, 8)
-  assert.equal(view.truncated, true)
+    assert.deepEqual(
+      definition.presentCall({ queries: ['alpha', 'beta'] }),
+      { card: 'generic', title: 'alpha, beta', kind: 'search', rawInput: 'alpha, beta' },
+    )
+    const meta = definition.output.presentationMeta({ queries: ['alpha', 'beta'] }, result)
+    const view = definition.presentResult({ queries: ['alpha', 'beta'] }, { isError: false, meta })
+    assert.equal(view.card, 'web')
+    assert.equal(view.kind, 'search')
+    assert.equal(view.sources.length, 12)
+    assert.equal(view.truncated, false)
   dispose()
 })
 

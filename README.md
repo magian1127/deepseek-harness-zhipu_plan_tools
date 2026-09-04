@@ -5,7 +5,7 @@
 [中文](README.md) · [English](README.en.md)
 
 <p align="center">
-  <img alt="版本 0.1.4" src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-0.1.4-5965d8">
+    <img alt="版本 0.1.5" src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-0.1.5-5965d8">
   <img alt="功能 搜索/读取/仓库" src="https://img.shields.io/badge/%E5%8A%9F%E8%83%BD-%E6%90%9C%E7%B4%A2%20%C2%B7%20%E8%AF%BB%E5%8F%96%20%C2%B7%20%E4%BB%93%E5%BA%93-4aa3ff">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-3b7a57">
 </p>
@@ -24,7 +24,7 @@
 | 联网搜索（接管 `web_search`） | 开 | 通过智谱 `web_search_prime` 搜索，并替换模型可见的内置搜索说明 |
 | 网页读取（接管 `web_fetch`） | 开 | 通过智谱 `webReader` 返回 Markdown；DSH v0.1.2 起 Web 端预设默认提供 `web_fetch`，安装后即生效 |
 | 开源仓库工具 | 关 | 注册 `github_search_doc`、`github_get_repo_structure`、`github_read_file` |
-| 提示词中文化 | 关 | 将插件注入的提示与工具说明从默认英文切换为中文；工具名不变 |
+| 提示词中文化 | 关 | 将插件注入的提示、工具说明与 github_* 工具错误消息从默认英文切换为中文；工具名不变 |
 | 凭据引用名 | `ZAI_CODING_CN_API_KEY` | 只保存引用名，不保存 API Key |
 
 卡片默认收起，底部依次为“恢复默认值 / 放弃修改 / 保存”。完整设置语义和关闭后的

@@ -48,17 +48,20 @@ async function runZread(
   args: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<string> {
-  const settings = getSettings()
-  if (!settings.enabled || !settings.zread) {
-    throw new ZhipuError(`[ZHIPU_DISABLED] 仓库工具已被设置停用(设置 → 插件设置 → ${'开源仓库'})`, 'ZHIPU_DISABLED')
-  }
-  const apiKey = await resolveApiKey(ctx, settings.credentialRef, 'tool', signal)
-  const result = await callMcpTool(ZREAD_MCP_URL, apiKey, tool, args, signal, { timeoutMs: ZREAD_TOOL_TIMEOUT_MS })
-  const text = contentText(result)
-  if (text.length === 0) {
-    throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] 智谱 ${tool} 返回空内容`, ZHIPU_PROVIDER_ERROR_CODE)
-  }
-  return text
+    const settings = getSettings()
+    if (!settings.enabled || !settings.zread) {
+      // 错误消息随 zhPrompt 切换:默认英文,与工具 description 的语言规则一致。
+      throw new ZhipuError(settings.zhPrompt
+        ? `[ZHIPU_DISABLED] 仓库工具已被设置停用(设置 → 插件设置 → ${'开源仓库'})`
+        : '[ZHIPU_DISABLED] Repo tools are disabled (Settings → plugin settings → repo tools)', 'ZHIPU_DISABLED')
+    }
+    const apiKey = await resolveApiKey(ctx, settings.credentialRef, 'tool', signal, settings.zhPrompt ? 'zh' : 'en')
+    const result = await callMcpTool(ZREAD_MCP_URL, apiKey, tool, args, signal, { timeoutMs: ZREAD_TOOL_TIMEOUT_MS, zhPrompt: settings.zhPrompt })
+    const text = contentText(result)
+    if (text.length === 0) {
+      throw new ZhipuError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${settings.zhPrompt ? `智谱 ${tool} 返回空内容` : `Zhipu ${tool} returned empty content`}`, ZHIPU_PROVIDER_ERROR_CODE)
+    }
+    return text
 }
 
 /** 单个工具的完整定义(parameters 必须是 JSON Schema 形态(顶层 type/properties/

@@ -86,6 +86,34 @@ test('智谱搜索主路径完成 MCP 生命周期并映射来源', async () => 
   }
 })
 
+  test('智谱搜索按 request.maxResults 预裁剪,避免 seam 截断提示', async () => {
+    const mock = providerContext()
+    const dispose = installZhipuSearchProvider(mock.ctx, () => settings)
+    assert.ok(dispose)
+
+    const originalFetch = globalThis.fetch
+    // 上游固定超量返回(实测无 count 参数):10 条 > maxResults 8。
+    const items = Array.from({ length: 10 }, (_, i) => ({
+      link: `https://example.com/${i}`,
+      title: `Item ${i}`,
+      content: `snippet ${i}`,
+    }))
+    globalThis.fetch = mcpFetch({
+      content: [{ type: 'text', text: JSON.stringify(items) }],
+    })
+    try {
+      const result = await mock.search()?.search({ query: 'focused query', maxResults: 8 })
+      assert.equal(result?.sources.length, 8)
+      assert.deepEqual(result?.sources.map((s: { url: string }) => s.url),
+        items.slice(0, 8).map((it) => it.link))
+      // truncated 语义限定为 seam 丢弃来源;provider 预裁剪时 seam 无丢弃。
+      assert.equal(result?.truncated, false)
+    } finally {
+      globalThis.fetch = originalFetch
+      dispose()
+    }
+  })
+
 test('智谱 reader 主路径映射正文与最终 URL', async () => {
   const mock = providerContext()
   const dispose = installZhipuReaderProvider(mock.ctx, () => settings)

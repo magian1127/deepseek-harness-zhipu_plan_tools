@@ -6,6 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { apply } from '../index.js'
 import { installSearchToolReplacementForAgent } from '../search-tool.js'
+import { loadSchemastery } from '../settings-schema.js'
 import type { Disposer, HostContext, WebFetchProviderShape, WebSearchProviderShape } from '../types.js'
 
 interface MockCall { kind: string; idOrName: string; text?: string }
@@ -147,7 +148,11 @@ test('apply 装配:providers 常驻;zread 默认关闭;清理全部可逆', () =
   assert.equal(mock.live.size, 0)
 })
 
-test('settings watch:zread 关闭即卸载工具与提示词,providers 常驻', () => {
+test('settings watch:zread 关闭即卸载工具与提示词,providers 常驻', (t) => {
+  if (loadSchemastery() === null) {
+    t.skip('本机无 schemastery,跳过 settings UI 路径用例')
+    return
+  }
   const mock = createMockContext({ settingsBase: {} })
   apply(mock.ctx, { zread: true })
   assert.ok(mock.live.has('tool:github_search_doc'))
@@ -246,7 +251,11 @@ test('畸形历史调用只降级展示，执行仍严格拒绝', async () => {
   )
 })
 
-test('zhPrompt 切换:工具 description 与提示词 section 随开关中英切换', () => {
+test('zhPrompt 切换:工具 description 与提示词 section 随开关中英切换', (t) => {
+  if (loadSchemastery() === null) {
+    t.skip('本机无 schemastery,跳过 settings UI 路径用例')
+    return
+  }
   const mock = createMockContext()
   apply(mock.ctx, { zread: true })
 

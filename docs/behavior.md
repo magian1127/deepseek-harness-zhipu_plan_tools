@@ -18,7 +18,7 @@
 
 - 仅当该 Agent 的继承视图中原 `web_search` 可见时才建立阴影,不会突破 preset 的隐藏策略;
 - **极简模式（minimal 预设）不注入**:该 preset 是“仅持久 shell + str_replace_editor”的双工具组合,本插件不为其建立 `web_search` 阴影;`zread` 开启时还在该 Agent 作用域 deny 全局 `github_*` 工具(极简 agent 的继承视图会暴露 host 全局注册的工具,只有显式 deny 才能保持双工具承诺)——该 deny 与 `search` 开关无关,只要插件 `enabled` 即生效; 会话中途切换预设(如 cordis → minimal)时由 `agent-preset/selected` 重新评估并撤销阴影/改挂 deny,避免残留注入。
-- 模型看到的 `web_search` 是本插件的(description 按语言切换),不是内置的;调用仍保留内置契约的每次 1–4 条查询、最多 8 个合并来源、30 秒工具预算与同批失败联动取消;
+- 模型看到的 `web_search` 是本插件的(description 按语言切换),不是内置的;调用保留内置契约的每次 1–4 条查询、30 秒工具预算与同批失败联动取消,合并来源上限由本插件放宽为 12 条(智谱上游固定返回 10 条,单次查询全部展示,高于内置 tool-web 的 8 条);超量返回由插件按请求上限预裁剪,来源面板不再显示「来源列表已截断」;
 - 系统提示中的 `tool:web_search` 说明同样只出现本插件的版本,内置原文不会重复出现;调用中与历史回放仍使用 DSH 的搜索结果卡片和结构化来源 meta;
 - 说明为**一段自写文本**(体现智谱后端),含使用方式与查询要点:收窄目标、补充时限/地区/版本限定、避免泛化与多问题拼接、先搜后迭代、保留用户原意 —— 不再单独注入查询指引 section;
 - 语言:默认英文(与内置工具风格一致),开启 `zhPrompt` 后为中文。
@@ -34,7 +34,7 @@
 | `search` | boolean | `true` | 是否接管 `web_search`。关闭后回退 DeepSeek 原生搜索(见下方回退语义) |
 | `reader` | boolean | `true` | 是否接管 `web_fetch`。关闭后回退受限 HTTP(S) 抓取 |
 | `zread` | boolean | `false` | 是否注册三个 `github_*` 工具；关闭后立即从模型工具目录移除 |
-| `zhPrompt` | boolean | `false` | 提示词中文化:开启后注入的系统提示词 section 与 `github_*` 工具说明使用中文(默认英文,与内置工具一致);开启时 `zread` 工具会随切换重装 |
+| `zhPrompt` | boolean | `false` | 提示词中文化:开启后注入的系统提示词 section、`github_*` 工具说明及其错误消息使用中文(默认英文,与内置工具一致);开启时 `zread` 工具会随切换重装 |
 | `credentialRef` | string | `ZAI_CODING_CN_API_KEY` | 智谱 GLM Coding Plan API Key 的凭据引用名 |
 
 ### 关闭后的回退语义
@@ -84,7 +84,8 @@ provider 的 `available()` 只确认 credentials 服务是否可解析或本地�
 - **历史工具参数异常**：回放旧 `github_*` 调用时，展示层降级为通用卡片；实际执行仍严格校验，`repo_name` 必须是 `owner/repo`。
 - **取消与超时**：调用方 `AbortSignal` 全程透传并保持取消语义；调用中止后不等待 MCP 会话清理，DELETE 清理失败不覆盖原结果。插件自身 MCP 请求超时归类为 provider 失败，不伪装成用户取消。
 - **会话生命周期**：每次调用独立完成 MCP 初始化、调用和清理，当前不复用连接，额外约有一次握手往返。
-- **网页正文上限**：`webReader` 与 HTTP 回退正文最多保留 200,000 字符，超出时返回 `truncated: true`；HTTP 回退另有 5,000,000 字节传输上限。
+- **网页正文上限**：`webReader` 与 HTTP 回退正文最多保留 200,000 字符，超出时返回 `truncated: true`；HTTP 回退另有 5,000,000 字节传输上限。智谱 MCP 响应体另有 8 MiB(8,388,608 字节)读取上限，超出时调用失败。
+- **仓库未收录**：zread 上游对未收录或不存在的 `owner/repo` 在 `isError` content 中返回结构化 `repo not found` 错误,插件映射为 `ZHIPU_REPO_NOT_FOUND` 固定提示,引导改用其他方式直接访问 GitHub;消息语言随 `zhPrompt`(默认英文)。上游原文仍只存不可枚举 `detail`,不会自动重试。
 - **搜索内容过滤**：上游返回结构化 `contentFilter` 时，插件统一映射为 `ZHIPU_CONTENT_FILTERED`，返回固定短提示，引导将搜索收窄到明确目标并补充实体、时间、地区、指标或来源。不会自动重试或切换后端。
 - **回退搜索失败**：内置 DeepSeek 搜索请求失败、超过 30 秒或未返回 `web_search_tool_result` 块时报告 `WEB_PROVIDER_ERROR`;不会自动改回智谱或重试。
 - **回退抓取失败**：关闭 reader 后的 HTTP 抓取网络失败报告 `WEB_PROVIDER_ERROR`;超时、URL/重定向策略、响应大小或内容类型失败使用下表对应错误码。非 2xx 文本响应仍作为结果返回,不抛错。
@@ -110,5 +111,6 @@ provider 的 `available()` 只确认 credentials 服务是否可解析或本地�
 | `ZHIPU_CREDENTIAL_MISSING` | 仓库工具解析不到凭据 | 同凭据检查步骤 |
 | `ZHIPU_DISABLED` | 仓库工具执行时已被设置停用 | 开启 `enabled` 和 `zread` |
 | `ZHIPU_PROVIDER_ERROR` | 仓库 MCP 的传输、协议或上游调用失败 | 查看消息前缀与 cause |
+| `ZHIPU_REPO_NOT_FOUND` | 仓库工具：zread 上游未收录该仓库(或 `owner/repo` 不存在) | 核对仓库名与真实存在性；未收录仓库改用 `web_fetch` 访问 GitHub 页面 |
 | `ZHIPU_ABORTED` | 仓库工具调用被取消 | 正常取消路径；检查调用方 signal |
 | `ZHIPU_CONTENT_FILTERED` | 智谱 MCP 内容过滤拒绝了当前请求 | 缩小范围并补充具体限定后重试 |

@@ -11,7 +11,8 @@ import { registerWithTakeover } from './registration.js'
 import { escapeMarkdownLinkText, foldExternalInlineText, sanitizeExternalUrl } from './util.js'
 
 const SEARCH_MAX_QUERIES = 4
-const SEARCH_MAX_RESULTS = 8
+/** 智谱上游固定返回 10 条(实测);12 = 全量透传 + 余量,高于内置 tool-web 的 8。 */
+const SEARCH_MAX_RESULTS = 12
 const SEARCH_TIMEOUT_MS = 30_000
 
 interface WebSource {

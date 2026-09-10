@@ -125,6 +125,64 @@ test('MCP isError 工具错误为固定文案且上游文本仅存不可枚举 d
   }
 })
 
+test('MCP isError 上游网络错误将 HTTP 状态与业务码摘要进消息', async () => {
+  const originalFetch = globalThis.fetch
+  let call = 0
+  // 实测 webReader 对部分页面上游返回:MCP error -500 双层 JSON,内层 code 1234 / 网络错误。
+  // text 块解析后的值即以下无外层转义形态(含 "code":"1234")。
+  const upstreamText = 'MCP error -500: 500 Internal Server Error: "{\"error\":{\"code\":\"1234\",\"message\":\"网络错误，错误id：20260909132527590631af778a42a4，请稍后重试\"}}"'
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    call += 1
+    if (init?.method === 'DELETE') return new Response('', { status: 200 })
+    if (call === 1) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'test-session' } })
+    if (call === 2) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'test-session' } })
+    return new Response(JSON.stringify({ jsonrpc: '2.0', id: 2, result: { isError: true, content: [{ type: 'text', text: upstreamText }] } }), { status: 200 })
+  }) as typeof fetch
+  try {
+    await assert.rejects(
+      () => callMcpTool('https://example.invalid/mcp', 'test-api-key', 'webReader', { url: 'https://tv.apple.com/…' }),
+      (error: any) => {
+        assert.equal(error.code, ZHIPU_PROVIDER_ERROR_CODE)
+        // 摘要可见:HTTP 状态与业务码对模型/用户可路由。
+        assert.match(error.message, /webReader 调用失败: 上游工具返回错误 \(upstream HTTP -500, code 1234\)$/)
+        // 完整原文与错误 id 不泄露进消息,仅存不可枚举 detail。
+        assert.doesNotMatch(error.message, /20260909132527590631af778a42a4|网络错误，错误id/)
+        const descriptor = Object.getOwnPropertyDescriptor(error, 'detail')
+        assert.equal(descriptor?.enumerable, false)
+        assert.match(String(descriptor?.value ?? ''), /20260909132527590631af778a42a4/)
+        return true
+      },
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('MCP isError 无识别码时保持原固定文案', async () => {
+  const originalFetch = globalThis.fetch
+  let call = 0
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    call += 1
+    if (init?.method === 'DELETE') return new Response('', { status: 200 })
+    if (call === 1) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'test-session' } })
+    if (call === 2) return new Response('{}', { status: 200, headers: { 'mcp-session-id': 'test-session' } })
+    return new Response(JSON.stringify({ jsonrpc: '2.0', id: 2, result: { isError: true, content: [{ type: 'text', text: 'some unrecognized upstream note' }] } }), { status: 200 })
+  }) as typeof fetch
+  try {
+    await assert.rejects(
+      () => callMcpTool('https://example.invalid/mcp', 'test-api-key', 'web_search_prime', { search_query: 'specific topic' }),
+      (error: any) => {
+        assert.equal(error.code, ZHIPU_PROVIDER_ERROR_CODE)
+        assert.match(error.message, /web_search_prime 调用失败: 上游工具返回错误$/)
+        assert.doesNotMatch(error.message, /\(upstream/)
+        return true
+      },
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('MCP JSON-RPC 普通错误仍使用 provider 错误码', async () => {
   const originalFetch = globalThis.fetch
   let call = 0

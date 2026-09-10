@@ -29,7 +29,7 @@ The card starts collapsed and ends with Restore defaults / Discard changes / Sav
 
 ## Requirements
 
-- DeepSeek Harness ≥ `0.1.2-rc.1`; Web uses `web`, Open Design stdio uses `open-design`, and DSH one-shot tasks may use `headless`
+- DeepSeek Harness ≥ `0.1.5-rc.1`; Web uses `web`, Open Design stdio uses `open-design`, and DSH one-shot tasks may use `headless`
 - Node.js `^22.19.0 || >=24.0.0`
 - A Zhipu GLM Coding Plan API key referenced by `ZAI_CODING_CN_API_KEY` by default
 

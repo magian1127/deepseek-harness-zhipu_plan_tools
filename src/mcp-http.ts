@@ -179,6 +179,25 @@ async function request(
     }
 }
 
+/**
+ * 从 isError 上游文本提取简短可路由摘要(HTTP 状态 + 业务错误码),
+ * 让模型/用户知道上游返回了什么,而不透传完整原文(仅存不可枚举 detail)。
+ * 例:"MCP error -500: {\"error\":{\"code\":\"1234\",...}}" → "HTTP -500, code 1234"。
+ * 提取不到可识别码时返回空串(调用方不加附注)。
+ */
+function upstreamErrorSummary(upstreamText: string): string {
+  const trimmed = upstreamText.trim()
+  if (trimmed.length === 0) return ''
+  // HTTP 层状态:形如 "MCP error -500: ..." / "MCP error: ..."。仅取 3 位数码。
+  const httpMatch = /MCP\s+error\s*:?\s*-?(\d{3})/i.exec(trimmed)
+  // 上游 JSON 业务码:{"error":{"code":"1234"}} 或 JSON 顶层/嵌套 code。
+  const codeMatch = /["']code["']\s*:\s*"?(-?\d+)/i.exec(trimmed)
+  const parts: string[] = []
+  if (httpMatch !== null) parts.push(`HTTP -${httpMatch[1]}`)
+  if (codeMatch !== null) parts.push(`code ${codeMatch[1]}`)
+  return parts.join(', ')
+}
+
 /** 从 SSE 或纯 JSON 文本解析出全部 JSON-RPC 帧。 */
 export function parseRpcFrames(text: string): any[] {
   const frames: any[] = []
@@ -243,7 +262,15 @@ function frameResult(frame: any | undefined, context: string): any {
           upstreamText,
         )
       }
-      throw upstreamError(`[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${en ? 'upstream tool returned an error' : '上游工具返回错误'}`, ZHIPU_PROVIDER_ERROR_CODE, upstreamText)
+      // 附加上游错误摘要:告诉模型/用户上游返回的 HTTP 状态与业务码(如 code 1234),便于
+      // 区分"URL 格式错误"(-400)与"上游网络/服务错误"(-500 网络错误请重试),完整原文仍只在 detail。
+      const summary = upstreamErrorSummary(upstreamText)
+      const suffix = summary.length > 0 ? ` (upstream ${summary})` : ''
+      throw upstreamError(
+        `[${ZHIPU_PROVIDER_ERROR_CODE}] ${context}: ${en ? 'upstream tool returned an error' : '上游工具返回错误'}${suffix}`,
+        ZHIPU_PROVIDER_ERROR_CODE,
+        upstreamText,
+      )
   }
   return result
 }

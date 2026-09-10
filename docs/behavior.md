@@ -107,7 +107,7 @@ provider 的 `available()` 只确认 credentials 服务是否可解析或本地�
 | `WEB_PROVIDER_CONFIGURED_MISSING` | DSH：配置指向的 provider 未注册 | 检查插件挂载行和加载状态 |
 | `WEB_PROVIDER_CONFIGURED_UNAVAILABLE` | DSH：provider 已注册但 `available()` 为 false | 检查总开关、功能开关和本地凭据 |
 | `WEB_PROVIDER_CREDENTIAL_MISSING` | 插件：搜索/读取解析不到凭据 | 检查 `credentialRef`、环境变量和凭据文件 |
-| `WEB_PROVIDER_ERROR` | 插件或 DSH：搜索/读取传输、解析或 provider 调用失败 | 查看消息中的错误码前缀与 cause |
+| `WEB_PROVIDER_ERROR` | 插件或 DSH：搜索/读取传输、解析或 provider 调用失败 | 查看消息中的错误码前缀、`(upstream HTTP -NNN, code …)` 摘要与 cause |
 | `WEB_INVALID_URL` / `WEB_BLOCKED_URL` | HTTP 回退：URL 非 HTTP(S)、过长、含凭据或为显式本机/私网地址 | 改用公开、规范的 HTTP(S) URL |
 | `WEB_REDIRECT_BLOCKED` | HTTP 回退：跨源重定向或超过 5 次 | 直接检查并请求可信最终 URL |
 | `WEB_UNSUPPORTED_CONTENT_TYPE` | HTTP 回退：响应不是支持的文本类型或字符集 | 改用文本/HTML/JSON/XML 资源 |
@@ -116,7 +116,7 @@ provider 的 `available()` 只确认 credentials 服务是否可解析或本地�
 | `WEB_DUPLICATE_PROVIDER` | DSH：同一 provider id 被重复注册 | 检查是否存在双挂载并确认幂等保护 |
 | `ZHIPU_CREDENTIAL_MISSING` | 仓库工具解析不到凭据 | 同凭据检查步骤 |
 | `ZHIPU_DISABLED` | 仓库工具执行时已被设置停用 | 开启 `enabled` 和 `zread` |
-| `ZHIPU_PROVIDER_ERROR` | 仓库 MCP 的传输、协议或上游调用失败 | 查看消息前缀与 cause |
+| `ZHIPU_PROVIDER_ERROR` | 仓库 MCP 的传输、协议或上游调用失败 | 查看消息前缀与 cause；`(upstream HTTP -NNN, code …)` 区分 URL 格式(-400)与上游网络/服务错误(-500 `code 1234` 可稍后重试) |
 | `ZHIPU_REPO_NOT_FOUND` | 仓库工具：zread 上游未收录该仓库(或 `owner/repo` 不存在) | 核对仓库名与真实存在性；未收录仓库改用 `web_fetch` 访问 GitHub 页面 |
 | `ZHIPU_ABORTED` | 仓库工具调用被取消 | 正常取消路径；检查调用方 signal |
 | `ZHIPU_CONTENT_FILTERED` | 智谱 MCP 内容过滤拒绝了当前请求 | 缩小范围并补充具体限定后重试 |

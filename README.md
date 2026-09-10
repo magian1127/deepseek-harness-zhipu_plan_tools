@@ -45,7 +45,7 @@
 
 ## 环境要求
 
-- DeepSeek Harness ≥ `0.1.2-rc.1`；Web 使用 `web`，Open Design stdio 使用 `open-design`，DSH 一次性任务可用 `headless`
+- DeepSeek Harness ≥ `0.1.5-rc.1`；Web 使用 `web`，Open Design stdio 使用 `open-design`，DSH 一次性任务可用 `headless`
 - Node.js `^22.19.0 || >=24.0.0`
 - 智谱 GLM Coding Plan API Key；默认引用名为 `ZAI_CODING_CN_API_KEY`
 

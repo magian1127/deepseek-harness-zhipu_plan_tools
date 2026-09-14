@@ -60,7 +60,7 @@ test('scoped web_search 保留查询上限、结果上限与轮询合并语义',
   )
 
   const result = await definition.execute({ queries: ['alpha', 'beta'] }, {})
-    assert.deepEqual(calls.map((call) => call.maxResults), [12, 12])
+    assert.deepEqual(calls.map((call) => call.maxResults), [40, 40])
   assert.deepEqual(
     result.sources.map((source: { url: string }) => source.url),
       [
@@ -72,7 +72,7 @@ test('scoped web_search 保留查询上限、结果上限与轮询合并语义',
         'https://example.com/a6', 'https://example.com/b6',
       ],
     )
-    // 双查询各 6 条去重合并后共 12 条,恰好达到上限,无丢弃。
+    // 双查询各 6 条轮询合并后共 12 条,低于 40 上限,无丢弃。
     assert.equal(result.truncated, false)
 
     assert.deepEqual(
@@ -85,6 +85,31 @@ test('scoped web_search 保留查询上限、结果上限与轮询合并语义',
     assert.equal(view.kind, 'search')
     assert.equal(view.sources.length, 12)
     assert.equal(view.truncated, false)
+  dispose()
+})
+
+test('scoped web_search 单查询 10 条 × 4 查询全量透传,不丢弃来源', async () => {
+  let definition: any
+  const ctx = scopedContext(async (request) => ({
+    // 上游单查询硬上限 10 条(实测);4 条查询 → 40 条候选。
+    sources: Array.from({ length: 10 }, (_value, index) => ({
+      url: `https://example.com/${request.query}-${index + 1}`,
+    })),
+    truncated: false,
+  }), (value) => { definition = value })
+  const dispose = installSearchToolReplacementForAgent({ ctx }, () => settings)
+  assert.ok(dispose)
+
+  const queries = ['猛禽', '蛇类', '龟类', '鹿']
+  const result = await definition.execute({ queries }, {})
+  // 40 条候选全部保留,无截断标记。
+  assert.equal(result.sources.length, 40)
+  assert.equal(result.truncated, false)
+
+  const meta = definition.output.presentationMeta({ queries }, result)
+  const view = definition.presentResult({ queries }, { isError: false, meta })
+  assert.equal(view.sources.length, 40)
+  assert.equal(view.truncated, false)
   dispose()
 })
 

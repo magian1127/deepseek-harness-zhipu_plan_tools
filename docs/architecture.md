@@ -101,6 +101,7 @@
   - 仓库：`https://open.bigmodel.cn/api/mcp/zread/mcp`。
 - 三个服务均使用 `ZAI_CODING_CN_API_KEY` Bearer 认证；曾验证的 `vision/mcp`、`reader/mcp` 等候选地址不适用。
 - `webReader` 支持 `url`、`timeout`、`no_cache`、`return_format`、`retain_images`、`no_gfm`、`keep_img_data_url`、`with_images_summary`、`with_links_summary`；正文位于双层 JSON 编码结果中。
+- `web_search_prime` 参数为 `search_query`(必填)、`search_domain_filter`、`search_recency_filter`、`content_size`、`location`;`additionalProperties:false`,**没有任何结果条数参数**。实测 `count` / `numResults` / `maxResults` / `limit` 一律被静默忽略。单查询返回上限恒为 **10 条**(2026-09 实测:宽泛/精确/中英文/单字符/生僻术语/热词/recency/content_size 等 10 组查询观测最大值均为 10,`tools/list` 亦无 `nextCursor` 分页),结果不足时更少。上游无法给出单查询 10 条以上的结果,需要更多来源只能拆成多条查询。
 - zread 的工具 schema 为 `search_doc{repo_name,query,language?}`、`get_repo_structure{repo_name,dir_path?}`、`read_file{repo_name,file_path}`。
 - DSH 相关契约位于上游 web provider、tool-web、core tools 与 mcp-client 包；查阅上游源码时以实际运行版本为准，不以本地 checkout HEAD 推断运行行为。
 

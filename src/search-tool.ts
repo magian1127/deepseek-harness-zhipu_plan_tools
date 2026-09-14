@@ -11,8 +11,14 @@ import { registerWithTakeover } from './registration.js'
 import { escapeMarkdownLinkText, foldExternalInlineText, sanitizeExternalUrl } from './util.js'
 
 const SEARCH_MAX_QUERIES = 4
-/** 智谱上游固定返回 10 条(实测);12 = 全量透传 + 余量,高于内置 tool-web 的 8。 */
-const SEARCH_MAX_RESULTS = 12
+/**
+ * 上游 web_search_prime 单查询硬上限 10 条(2026-09 实测:tools/list 无任何条数
+ * 参数且 additionalProperties:false,count/numResults/maxResults/limit 均被忽略;
+ * 宽泛/精确/中英文/生僻/热词/recency/content_size 等 10 组查询观测上限恒为 10,
+ * 结果不足时更少)。故 4 条查询的候选上限 = 4 × 10 = 40。
+ * 取 40 = 一次调用内全量透传,不再丢弃任何已抓回的来源(内置 tool-web 为 8)。
+ */
+const SEARCH_MAX_RESULTS = 40
 const SEARCH_TIMEOUT_MS = 30_000
 
 interface WebSource {

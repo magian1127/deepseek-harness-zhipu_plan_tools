@@ -9,7 +9,7 @@
 | --- | --- |
 | `src/index.ts` | host 插件入口与运行时装配 |
 | `src/*.ts` | provider、MCP、凭据、设置与热重载模块 |
-| `src/client.ts` / `src/client-logic.ts` | 浏览器设置卡片及纯状态逻辑 |
+| `src/client.ts` / `src/client-logic.ts` | 浏览器配置表单（插件页）及纯状态逻辑 |
 | `src/bin/` | CLI 与 patch 行管理源码 |
 | `src/tests/` | `node:test` 测试源码 |
 | `cordis.patch.yml` | 随包发布的持久 bundle patch |
@@ -25,9 +25,9 @@
 | 场景 | 本插件正确通道 | 验证方式 |
 | --- | --- | --- |
 | 首次热挂载 | 使用项目 CLI 的桥接/临时行策略；不可仅凭 dsh-zh manifest reconcile 假定成功 | CLI `status` 之外，检查实际 Loader、provider registry 和现有 GUI |
-| 自监视尚未安装 | 一次性动态插件对目标文件执行 `hmr.stashed.add(fileUrl)` 与 `hmr.partialReload()` 引导 | 确认真实目标路径进入 `hmr.configs` |
+| 让新构建进入长跑进程 | 当前 DSH 下没有免重启通道（见下）——由用户重启一次 `dsh web` | 重启后核对运行态行为，或包内暴露的运行态版本字段 |
 
-原因：`cordis.patch.yml` 除 `insert` 外还含 `web.config`，而 dsh-zh 的简单 manifest `hotMount` 只接受 `insert → id + name`。本插件 Host 必须保持单文件 bundle，query URL 才能可靠刷新入口；Loader 自身 `loadCache` 不会自动清除。
+原因：`cordis.patch.yml` 除 `insert` 外还含 `web.config`，而 dsh-zh 的简单 manifest `hotMount` 只接受 `insert → id + name`。0.1.6-alpha.2 的 `hmr` 服务面已移除 `registerConfig`/`partialReload`/`stashed`，`src/self-hot-reload.ts` 的旧式自监视因此恒为 no-op；官方 watcher 也不覆盖 profile bundle（`ignored` 默认含 `**/node_modules`）。本插件 Host 保持单文件 bundle 仍有价值（入口 query 可靠刷新），但**不再有任何 host 热通道**。
 
 ## 不可破坏的约束
 
@@ -47,7 +47,7 @@
 ### 凭据与设置
 
 8. `dshHome()` 的非空 `$DSH_HOME` → `~/.dsh` 回退不可删除；三层凭据解析的 API Key 永不写入配置、日志或错误信息。
-9. 客户端只向 `settings.plugin.item` 注入本插件卡片并使用官方 `settingsScope`；不增加自定义网络请求、遥测或独立持久数据。
+9. 客户端只向 `plugins.bundle.config`（键为本包 npm 包名）注入本插件配置表单并使用官方 `settingsScope`；不增加自定义网络请求、遥测或独立持久数据。
 
 ## 实现经验
 

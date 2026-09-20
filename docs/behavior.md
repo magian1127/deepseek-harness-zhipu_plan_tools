@@ -10,13 +10,13 @@
 | 联网搜索 | 接管内置 `web_search` 后端，调用智谱 `web_search_prime`，返回中英文混合来源 |
 | 网页读取 provider | 接管内置 `web_fetch` 后端，调用智谱 `webReader` 并返回 Markdown 正文；DSH v0.1.2 起 Web 端 agent 预设默认提供 `web_fetch` 工具，安装本插件后默认即走智谱后端 |
 | 开源仓库工具 | 按设置注册 `github_search_doc`、`github_get_repo_structure`、`github_read_file` |
-| Web 设置卡片 | 仅在 `web` profile 的 DSH 设置 → 插件 → 插件配置中显示；支持实时开关、凭据引用和中英界面 |
+| Web 配置表单 | DSH 0.1.6+ 在侧栏「插件」页 → 本包页面的组合包配置区显示（`plugins.bundle.config` 槽位）；支持实时开关、凭据引用和中英界面 |
 
 ### Profile 隔离与 Open Design / headless
 
 DSH bundle 按 profile 独立组合。Open Design 实际启动 `dsh --profile open-design --stdio`，不是 stock `headless`；因此本 bundle 必须另装到 `open-design`。安装后，provider、`web_search` Agent scope 阴影和三个 `github_*` 都按本契约工作。stock `headless` 若需要，也要单独安装。
 
-同一 `${DSH_HOME:-~/.dsh}` 下各 profile 共用 settings/credentials。两个非 Web profile 不显示设置卡，但读取相同 `dsh-zhipu` 值。`open-design` stdout 仅允许 JSONL 协议帧，所以信息日志写 stderr；警告/错误本来就不写 stdout。
+同一 `${DSH_HOME:-~/.dsh}` 下各 profile 共用 settings/credentials。两个非 Web profile 不显示配置表单，但读取相同 `dsh-zhipu` 值。`open-design` stdout 仅允许 JSONL 协议帧，所以信息日志写 stderr；警告/错误本来就不写 stdout。
 
 ### 搜索工具的接管与说明替换
 
@@ -31,12 +31,13 @@ DSH bundle 按 profile 独立组合。Open Design 实际启动 `dsh --profile op
 
 ## 设置语义
 
-设置存储在 DSH `settings.yaml` 的 `dsh-zhipu` 命名空间，修改实时生效。Web GUI 中的下表严格按照
-可收缩设置卡片从上到下排列；卡片默认收起。非 Web profile 不显示卡片，但读取同一命名空间与默认值：
+设置存储在 DSH `settings.yaml` 的 `dsh-zhipu` 命名空间，修改实时生效。插件页配置表单严格按照
+下表从上到下排列；只有「保存」才写入，离开页面即丢弃未保存的草稿（DSH 0.1.6+ 官方约定）。
+非 Web profile 不显示表单，但读取同一命名空间与默认值：
 
 | 字段 | 类型 | 默认值 | 语义 |
 | --- | --- | --- | --- |
-| `enabled` | boolean | `true` | 总开关。关闭后搜索/读取进入兼容回退、仓库工具与提示卸载；设置入口保留 |
+| `enabled` | boolean | `true` | 总开关。关闭后搜索/读取进入兼容回退、仓库工具与提示卸载；配置入口保留 |
 | `search` | boolean | `true` | 是否接管 `web_search`。关闭后回退 DeepSeek 原生搜索(见下方回退语义) |
 | `reader` | boolean | `true` | 是否接管 `web_fetch`。关闭后回退受限 HTTP(S) 抓取 |
 | `zread` | boolean | `false` | 是否注册三个 `github_*` 工具；关闭后立即从模型工具目录移除 |
@@ -58,7 +59,7 @@ DSH bundle 按 profile 独立组合。Open Design 实际启动 `dsh --profile op
 
 使用前在 **DSH 设置 → 模型** 添加中国区 `zai-coding-cn` 提供商，而不是海外 `zai`。该提供商通过 `apiKeyEnv: ZAI_CODING_CN_API_KEY` 引用环境认证，与插件的默认 `credentialRef` 一致。
 
-确保该引用存在于环境变量或 `${DSH_HOME:-~/.dsh}/.credentials.yaml`；若使用其他变量名，在插件设置卡片修改 `credentialRef`。
+确保该引用存在于环境变量或 `${DSH_HOME:-~/.dsh}/.credentials.yaml`；若使用其他变量名，在插件页配置表单修改 `credentialRef`。
 
 ### 解析与安全
 
@@ -72,7 +73,7 @@ provider 的 `available()` 只确认 credentials 服务是否可解析或本地�
 
 ## `web_fetch` 启用边界
 
-自 DSH v0.1.2 起，Web 端 agent 预设（standard / ptc / codex）默认在模型工具目录中提供 `web_fetch`。本插件只设置 reader provider、不改工具开关：安装挂载后 `web_fetch` 默认即以智谱 `webReader` 为后端，无需额外启用步骤。
+自 DSH v0.1.2 起，Web 端 agent 预设（standard / ptc / cordis）默认在模型工具目录中提供 `web_fetch`。本插件只设置 reader provider、不改工具开关：安装挂载后 `web_fetch` 默认即以智谱 `webReader` 为后端，无需额外启用步骤。
 
 旧版 DSH（Web 组合尚未默认提供 `web_fetch` 时）才需要在 profile patch 中启用：
 

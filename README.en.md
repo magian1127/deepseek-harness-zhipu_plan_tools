@@ -14,7 +14,7 @@ Brings three Zhipu GLM Coding Plan MCP services into DSH as native providers and
 
 ## Features and settings order
 
-Expand **Zhipu Tools** under **DSH Settings → Plugins → Plugin configuration**. The rows below follow the card from top to bottom:
+Open the **Zhipu Tools** configuration form on the **sidebar → Plugins → deepseek-harness-zhipu_plan_tools** page (DSH 0.1.6+). The rows below follow the form from top to bottom:
 
 | Setting | Plugin default | Summary |
 | --- | --- | --- |
@@ -124,7 +124,7 @@ npm test
 npm run verify
 ```
 
-Do not restart DSH for development or verification; follow the documented hot path and refresh the existing GUI only when needed.
+Do not restart DSH merely for development. The client half hot-swaps in-page through `dsh-client-hmr`; the host half currently has no working partial-reload channel (its self-watch depends on the removed `registerConfig`/`partialReload`), so a rebuilt `lib/` needs one process restart — refresh the page only as a fallback.
 
 ## Documentation index
 

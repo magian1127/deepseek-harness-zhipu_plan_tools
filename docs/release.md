@@ -25,7 +25,7 @@ npm pack --dry-run --json
 - CLI 无参数 usage 冒烟符合约定；
 - npm tarball 只包含预期发布文件，不含凭据、日志或本机路径。
 
-涉及用户界面或运行时行为的版本，还要在**现有** DSH GUI 中完成真实验收：client 改动确认实际 bundle 后刷新页面，host 改动依赖自监视局部重载；不得重启 DSH，也不得启动替代服务。本插件复杂 patch 的例外见 [`development.md#热路径选择智谱专属例外`](development.md#热路径选择智谱专属例外)。
+涉及用户界面或运行时行为的版本，还要在**现有** DSH GUI 中完成真实验收：client 改动由 DSH client HMR 自动换血（确认运行副本后即可看页面行为），host 改动在当前 DSH 下没有热通道——需由用户重启一次 `dsh web` 后验收；代理自身不得重启 DSH，也不得启动替代服务。本插件复杂 patch 的例外见 [`development.md#热路径选择智谱专属例外`](development.md#热路径选择智谱专属例外)。
 
 ## 版本来源
 

@@ -16,7 +16,7 @@
 
 ## 功能与设置顺序
 
-在 **DSH 设置 → 插件 → 插件配置** 中展开“智谱工具”。下表严格按卡片从上到下排列：
+在侧栏 **「插件」页 → deepseek-harness-zhipu_plan_tools 页面**（DSH 0.1.6+）查看配置表单。下表严格按表单从上到下排列：
 
 | 设置 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -40,8 +40,7 @@
 - **凭据**：统一引用 `ZAI_CODING_CN_API_KEY`（智谱 GLM Coding Plan API Key），三层解析
   （DSH 凭据服务 → 环境变量 → `~/.dsh/.credentials.yaml` 直读）；Key 永不写入配置或日志。
   - **尊重 Agent 预设**：极简模式（minimal 预设）是“仅持久 shell + str_replace_editor”的双工具组合，该模式下不注册 `web_search` 阴影；`zread` 开启时还在该 Agent 作用域 deny 全局 `github_*` 工具（该 deny 不依赖 `search` 开关，插件启用即生效），保持双工具承诺。
-- **热更新**：Host 侧产物自监视热重载（改 `src/` → `npm run build` 即生效，无需重启）；
-  设置 `applies: 'live'` 实时生效。
+- **热更新**：设置 `applies: 'live'` 实时生效；Host 产物在当前 DSH 版本下**没有免重启热通道**（`hmr` 服务面已移除 `registerConfig`/`partialReload`，profile bundle 又位于官方 watcher 默认排除的 `node_modules` 下），改 `src/` 后需 `npm run build` 并由用户重启一次 `dsh web`，`lib/client.js` 的改动则由 DSH client HMR 自动换血。
 
 ## 环境要求
 
@@ -98,14 +97,14 @@ dsh plugin --profile headless list
 作为该提供商的 API Key——这正是本插件默认的凭据引用名 `credentialRef`。
 
 因此你只需保证 `ZAI_CODING_CN_API_KEY` 已存在于环境变量或 `~/.dsh/.credentials.yaml`，
-插件零额外配置即可取到智谱 Coding Plan Key；若你在环境变量中配置了别的名字，可在设置卡片中
+插件零额外配置即可取到智谱 Coding Plan Key；若你在环境变量中配置了别的名字，可在插件页配置表单中
 把 `credentialRef` 改成对应名字。
 
 Open Design/stock headless 没有设置页面，但同一 `${DSH_HOME:-~/.dsh}` 下共用 `settings.yaml` 与凭据：可先在 Web GUI 保存设置，后续 `open-design` / `headless` 进程读取同一 `dsh-zhipu` 命名空间。
 
 ## web_fetch（网页读取）可用性
 
-自 DSH v0.1.2 起，Web 端 agent 预设（standard / ptc / codex）默认在模型工具目录中提供
+自 DSH v0.1.2 起，Web 端 agent 预设（standard / ptc / cordis）默认在模型工具目录中提供
 `web_fetch`。本插件只接管其后端 provider、不改工具开关：安装挂载后 `web_fetch` 默认即走
 智谱 `webReader`，无需额外启用步骤。
 

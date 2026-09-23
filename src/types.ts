@@ -94,26 +94,6 @@ export interface SystemPromptService {
   section(section: { name: string; order?: number; text: string | ((context: unknown) => string) }): Disposer
 }
 
-/** settings 服务:命名空间注册(rc.7+,exposeToClients 支持设置卡片)。 */
-export interface SettingsScopeShape {
-  get(): Record<string, unknown>
-  watch(callback: (next: Record<string, unknown>) => void): Disposer
-}
-
-export interface SettingsRegisterOptions {
-  base?: Record<string, unknown>
-  applies?: 'live' | 'restart'
-  exposeToClients?: boolean
-}
-
-export interface SettingsService {
-  register(
-    namespace: string,
-    schema: unknown,
-    options?: SettingsRegisterOptions,
-  ): SettingsScopeShape
-}
-
 /** hmr 服务:自监视热重载(官方 vendor/hmr)。 */
 export interface HmrService {
   registerConfig(path: string, onChange: () => void): Promise<Disposer>

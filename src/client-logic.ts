@@ -4,6 +4,7 @@
  * 标识符会让整个插件 apply 抛 ReferenceError 全部失效)。
  */
 
+/** 旧 settings 命名空间名;DSH 0.1.7 起兼作 configForms 的入口 id(profile 行 id)。 */
 export const SETTINGS_NAMESPACE = 'dsh-zhipu'
 export const LOCALE_NAMESPACE = 'settings.dsh-zhipu'
 

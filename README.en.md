@@ -5,7 +5,7 @@
 [中文](README.md) · [English](README.en.md)
 
 <p align="center">
-    <img alt="version 0.1.5" src="https://img.shields.io/badge/version-0.1.5-5965d8">
+    <img alt="version 0.1.6" src="https://img.shields.io/badge/version-0.1.6-5965d8">
   <img alt="features search/reader/repo" src="https://img.shields.io/badge/features-search%20%C2%B7%20reader%20%C2%B7%20repo-4aa3ff">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-3b7a57">
 </p>
@@ -29,7 +29,7 @@ The card starts collapsed and ends with Restore defaults / Discard changes / Sav
 
 ## Requirements
 
-- DeepSeek Harness ≥ `0.1.5-rc.1`; Web uses `web`, Open Design stdio uses `open-design`, and DSH one-shot tasks may use `headless`
+- DeepSeek Harness ≥ `0.1.7-alpha.2`; Web uses `web`, Open Design stdio uses `open-design`, and DSH one-shot tasks may use `headless`
 - Node.js `^22.19.0 || >=24.0.0`
 - A Zhipu GLM Coding Plan API key referenced by `ZAI_CODING_CN_API_KEY` by default
 

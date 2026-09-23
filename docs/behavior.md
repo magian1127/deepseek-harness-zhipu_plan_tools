@@ -31,9 +31,10 @@ DSH bundle 按 profile 独立组合。Open Design 实际启动 `dsh --profile op
 
 ## 设置语义
 
-设置存储在 DSH `settings.yaml` 的 `dsh-zhipu` 命名空间，修改实时生效。插件页配置表单严格按照
+设置存储在本插件 profile 行 config（入口 id `dsh-zhipu`，DSH 0.1.7 起；旧 `settings.yaml`
+命名空间已退役），字段全 volatile，修改实时生效。插件页配置表单严格按照
 下表从上到下排列；只有「保存」才写入，离开页面即丢弃未保存的草稿（DSH 0.1.6+ 官方约定）。
-非 Web profile 不显示表单，但读取同一命名空间与默认值：
+非 Web profile 不显示表单，但读取同一行 config 与默认值：
 
 | 字段 | 类型 | 默认值 | 语义 |
 | --- | --- | --- | --- |

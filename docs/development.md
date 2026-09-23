@@ -47,7 +47,7 @@
 ### 凭据与设置
 
 8. `dshHome()` 的非空 `$DSH_HOME` → `~/.dsh` 回退不可删除；三层凭据解析的 API Key 永不写入配置、日志或错误信息。
-9. 客户端只向 `plugins.bundle.config`（键为本包 npm 包名）注入本插件配置表单并使用官方 `settingsScope`；不增加自定义网络请求、遥测或独立持久数据。
+9. 客户端只向 `plugins.bundle.config`（键为本包 npm 包名）注入本插件配置表单并使用官方 `configForms`（DSH 0.1.7+，接替已退役的 `settingsScope`）；不增加自定义网络请求、遥测或独立持久数据。
 
 ## 实现经验
 

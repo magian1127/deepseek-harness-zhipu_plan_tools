@@ -35,5 +35,5 @@
 - Loader 中应至多各有一条 `dsh-zhipu`、`dsh-zhipu-hot`、`dsh-zhipu-bridge`，且三者职责不能互换。
 - provider registry 应存在智谱 search/reader provider；只看到 `cordis.patch.yml` 的静态配置不算已注册。
 - `Tool.listTools` 应随 `zread` 实时出现或移除三个 `github_*`，并随 `search` 在 Agent own scope 切换 `web_search` shadow。
-- 客户端 bundle 由 boot graph 通告，地址形如 `/plugins/??deepseek-harness-zhipu_plan_tools/client.js&rev=<rev>`（不带 `??`/`rev` 的形式一律 404，不能当判据）；配置表单缺失时继续检查 `settingsScope` 绑定与 `plugins.bundle.config` 的 key（本包 npm 包名）。
+- 客户端 bundle 由 boot graph 通告，地址形如 `/plugins/??deepseek-harness-zhipu_plan_tools/client.js&rev=<rev>`（不带 `??`/`rev` 的形式一律 404，不能当判据）；配置表单缺失时继续检查 `configForms` 绑定（入口 id `dsh-zhipu` = profile 行 id）与 `plugins.bundle.config` 的 key（本包 npm 包名）。
 - 宿主进程不保证导出 `DSH_HOME`，凭据解析必须保留 `~/.dsh` 回退；诊断输出不得包含 API Key。

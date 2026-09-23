@@ -38,6 +38,12 @@ npm pack --dry-run --json
 不要在其他技术文档维护“当前版本”副本。
 
 ## 版本记录
+### 0.1.6
+
+- 迁移插件配置到插件页组合包槽位：配置表单改为向 `plugins.bundle.config`（键为本包 npm 包名）注册，配置存储归 profile 行所有，随 DSH 0.1.7 的 `settings` 存储退役同步；client 半边精简；
+- 修复搜索来源被截断：scoped `web_search` 的合并来源上限由 12 提升为 40，智谱上游超量返回的来源不再被 seam 截断、来源面板不再显示截断标记；
+- 环境要求提升为 DSH Web GUI ≥ 0.1.7-alpha.2。
+
 ### 0.1.5
 
 - zread 上游"repo not found"(仓库未被收录或不存在)映射为稳定错误码 `ZHIPU_REPO_NOT_FOUND`,错误消息提示改用其他方式访问 GitHub,不再笼统折叠为"上游工具返回错误";错误脱敏边界不变,上游原文仍只存不可枚举 `detail`;

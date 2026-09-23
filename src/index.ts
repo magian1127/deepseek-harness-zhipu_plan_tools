@@ -4,8 +4,9 @@
  * 职责:
  * 1. 注册 search / reader 两个 web provider(常驻,available 联动设置);
  * 2. 按设置动态装卸 3 个 github_* 仓库工具与提示词 section;
- * 3. settings 命名空间 `dsh-zhipu`(applies: live + exposeToClients,
- *    网页设置卡片读写);schemastery 不可用时降级为组合行 config;
+ * 3. 插件 Config(DSH 0.1.7 起,字段全 volatile):值持久化在 profile 行
+ *    config,插件页实时编辑,`loader/volatile-update` 驱动表面收敛;
+ *    schemastery 不可用时 Config 为 null,按传入的普通 config 工作;
  * 4. 自监视热重载(lib 产物变化 → partialReload,改完即生效,不重启);
  * 5. 双行并存(bundle 行 + 热行/桥接行)由幂等注册兜底,单活实例。
  *
@@ -13,17 +14,24 @@
  * 把自己卸载;不生效时留着也无害)——remove 交给 CLI;重启后冷启动双行
  * 并存同样由幂等保护兜底(沿 ZhiPu_web_search 的已验证策略)。
  */
-import { LOCALE_NAMESPACE, PKG, SETTINGS_NAMESPACE } from './constants.js'
+import { LOCALE_NAMESPACE, PKG } from './constants.js'
 import { installSelfHotReload } from './self-hot-reload.js'
-import { createSettingsSchema, loadSchemastery, normalizeSettings, type ZhipuSettings } from './settings-schema.js'
-import type { Disposer, HostContext, SettingsScopeShape, SystemPromptService, ToolsService } from './types.js'
+import { createSettingsSchema, dereferenceConfig, loadSchemastery, normalizeSettings, type ZhipuSettings } from './settings-schema.js'
+import type { Disposer, HostContext, SystemPromptService, ToolsService } from './types.js'
 import { installSearchToolReplacementForAgent } from './search-tool.js'
 import { installZhipuReaderProvider } from './zhipu-reader.js'
 import { installZhipuSearchProvider } from './zhipu-search.js'
 import { installZhipuZreadTools } from './zhipu-zread.js'
 
 export const name = PKG
-export const inject = ['web', 'tools', 'systemPrompt', 'settings', 'agents']
+export const inject = ['web', 'tools', 'systemPrompt', 'agents']
+
+// 宿主 0.1.7 起读取的插件 Config:全部字段 volatile,配置 UI(插件页)与
+// 实时生效都由宿主直接投影本 schema。schemastery 不可用时导出 undefined
+// (不能是 null:宿主 settings 的 `'toJSON' in Config` 检查遇 null 会崩掉
+// 整页设置;undefined 被视为无 Config,安全降级),config 以普通值传入
+// (见 settings-schema.ts 降级说明)。
+export const Config = createSettingsSchema(loadSchemastery()) ?? undefined
 
 /** Open Design 的 probe/models/stdio 都把 stdout 保留给严格 JSONL 协议。 */
 function isOpenDesignProfile(argv: readonly string[] = process.argv): boolean {
@@ -57,8 +65,8 @@ const ZREAD_PROMPT_SECTIONS: Array<{ name: string; en: string; zh: string }> = [
 ]
 
 export function apply(ctx: HostContext, config: Record<string, unknown> = {}): void {
-  // 基线:组合行 config(归一化);settings 就绪后由 watch 覆盖。
-  let current: ZhipuSettings = normalizeSettings(config)
+  // 基线:宿主传入的行 config(volatile 字段为引用,去引用后归一化)。
+  let current: ZhipuSettings = normalizeSettings(dereferenceConfig(config))
 
   // 1) providers 常驻注册:available()/调用行为联动最新设置。
   const providerDisposers: Array<() => void> = []
@@ -206,40 +214,13 @@ export function apply(ctx: HostContext, config: Record<string, unknown> = {}): v
     }
   refresh()
 
-  // 3) settings 命名空间:注册(live + 客户端可见);watch 驱动刷新。
-  const settings = ctx.get('settings') as
-    | { register(namespace: string, schema: unknown, options?: Record<string, unknown>): SettingsScopeShape }
-    | undefined
-    | null
-  if (settings !== undefined && settings !== null) {
-    const schema = createSettingsSchema(loadSchemastery())
-    let scope: SettingsScopeShape | undefined
-    if (schema !== null) {
-      try {
-        scope = settings.register(SETTINGS_NAMESPACE, schema, {
-          base: current as unknown as Record<string, unknown>,
-          applies: 'live',
-          exposeToClients: true,
-        })
-        // 注册成功后以 schema 填充过的快照为准(默认值齐全)。
-        current = normalizeSettings(scope.get())
-        refresh()
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error)
-        if (!/duplicate|already/i.test(message)) throw error
-        // 双行并存:命名空间已由先到实例注册,本实例沿用组合行 config。
-        scope = undefined
-      }
-    } else {
-      console.warn(`[${PKG}] schemastery 不可用(profile 解析失败),设置卡片未注册,按组合行配置工作`)
-    }
-    if (scope !== undefined) {
-      ctx.effect(() => scope!.watch((next) => {
-        current = normalizeSettings(next)
-        refresh()
-      }), `${PKG}: settings watch`)
-    }
-  }
+  // 3) 实时配置:宿主把 volatile 字段变更以引用提交进 config 并派发
+  // loader/volatile-update(仅本 fiber),去引用重建快照后收敛全部表面。
+  // Config 为 null 时 config 是普通值,该事件不会到来,按基线配置工作。
+  ctx.on('loader/volatile-update', () => {
+    current = normalizeSettings(dereferenceConfig(config))
+    refresh()
+  })
 
   // 3.5) agent 生命周期:新 Agent 加入时按预设建立表面(阴影或极简 deny),销毁时清理。
   ctx.on('agent/created', (payload: unknown) => {

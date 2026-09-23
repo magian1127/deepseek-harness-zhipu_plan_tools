@@ -27,7 +27,7 @@
       └─ zhipu-zread
 
 三类调用 → credentials → mcp-http → 智谱 MCP → 结果映射 / 稳定错误码
-设置页 → settings namespace → live watch → provider 可用性、工具和提示动态装卸
+设置页 → 插件 Config volatile（行 config）→ loader/volatile-update → provider 可用性、工具和提示动态装卸
 构建产物变化 → self-hot-reload 失效（旧 API 已移除）→ 需重启进程
 ```
 
@@ -41,7 +41,7 @@
 | `src/zhipu-search.ts` | provider id `zhipu-web-search-prime`；传递 `search_query` 并映射搜索来源 |
 | `src/zhipu-reader.ts` | provider id `zhipu-web-reader`；请求 Markdown，解析双层 JSON 并映射 `WebFetchResult` |
 | `src/zhipu-zread.ts` | 注册三个 `github_*` 工具、参数 schema、60 秒协作超时与通用展示卡片 |
-| `src/settings-schema.ts` / `src/client.ts` | 注册 `dsh-zhipu` 设置命名空间和插件页配置表单（`plugins.bundle.config`），实时同步六个字段 |
+| `src/settings-schema.ts` / `src/client.ts` | 导出 volatile Config（行 id `dsh-zhipu` 的行 config）和插件页配置表单（`plugins.bundle.config`，读写走 `configForms`），实时同步六个字段 |
 | `src/self-hot-reload.ts` | 监视 host 构建产物；旧 API 分支在当前 DSH 已失效（见 development.md 热路径选择） |
 | `src/bin/` | 管理持久行、临时热行和桥接行；按可用能力选择热挂载通道 |
 

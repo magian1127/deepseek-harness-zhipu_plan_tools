@@ -2,7 +2,7 @@
  * client 半边:向侧栏插件页(Plugins page)的本包页面(plugins.bundle.config
  * 槽位,key 为 npm 包名)贡献配置表单。DSH 0.1.6 起插件配置从设置页
  * "插件设置"区(settings.plugin.item,已退役)迁到插件页组合包页面。
- * 读写走官方 settingsScope(命名空间 dsh-zhipu),文案走
+ * 读写走官方 configForms(DSH 0.1.7+,入口 id dsh-zhipu = profile 行 id),文案走
  * locale(settings.dsh-zhipu,中英双语)。
  *
  * 对齐官方 PluginConfigForm 约定:summary 视图渲染一句话简介,page 视图
@@ -266,21 +266,31 @@ function createForm(scope: any, t: (key: string) => string): (props: { view?: st
 
 function apply(ctx: any): void {
   const t = ctx.locale.bind(LOCALE_NAMESPACE)
-  const scope = ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE })
-  const ConfigPage = createForm(scope, t)
+  // DSH 0.1.7 起 settings 命名空间退役,配置值改挂在插件行 config 上;
+  // 客户端经 configForms 服务按入口 id(profile 行 id,与旧命名空间同名)
+  // 取 ConfigForm:snapshot/subscribe/set 面与旧 settingsScope 同构。
+  const configForms = ctx.configForms
+  const scope = configForms !== undefined && configForms !== null && typeof configForms.get === 'function'
+    ? configForms.get(SETTINGS_NAMESPACE)
+    : undefined
+  const ConfigPage = scope === undefined ? undefined : createForm(scope, t)
   ctx.effect(function () {
     return ctx.locale.register(LOCALE_NAMESPACE, { zh, en })
   }, 'dsh-zhipu: settings dictionaries')
   // 插件页组合包页面:键必须是 profile 里本包的 npm 包名(见
-  // plugins.bundle.config 槽位契约),settings 命名空间与写入协议不变。
-  ctx.slots.inject('plugins.bundle.config', function () {
-    return ctx.slots.register({
-      name: 'plugins.bundle.config',
-      key: BUNDLE_PACKAGE_NAME,
-      locale: LOCALE_NAMESPACE,
-    }, ConfigPage)
-  })
+  // plugins.bundle.config 槽位契约);读写走 configForms(行 config)。
+  if (ConfigPage !== undefined) {
+    ctx.slots.inject('plugins.bundle.config', function () {
+      return ctx.slots.register({
+        name: 'plugins.bundle.config',
+        key: BUNDLE_PACKAGE_NAME,
+        locale: LOCALE_NAMESPACE,
+      }, ConfigPage)
+    })
+  } else {
+    console.warn('[dsh-zhipu] configForms 服务不可用,设置卡片未注册')
+  }
 }
 
-export const inject = ['slots', 'locale', 'connection', 'remote', 'settingsScope']
+export const inject = ['slots', 'locale', 'connection', 'configForms']
 export { apply }

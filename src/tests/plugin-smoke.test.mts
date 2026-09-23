@@ -1,12 +1,12 @@
 // host 装配冒烟(假 ctx,playbook"假 ctx 单测"手法):
 // apply → providers/工具/提示词注册齐全;fiber 清理 → 全部可逆;
-// settings watch → zread 开关与提示词动态装卸;默认关闭;
+// volatile 变更(loader/volatile-update + config 引用)→ zread 开关与提示词
+// 动态装卸;默认关闭;
 // 关闭 search/reader 后 provider 仍 available(回退语义),调用走回退路径。
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { apply } from '../index.js'
 import { installSearchToolReplacementForAgent } from '../search-tool.js'
-import { loadSchemastery } from '../settings-schema.js'
 import type { Disposer, HostContext, WebFetchProviderShape, WebSearchProviderShape } from '../types.js'
 
 interface MockCall { kind: string; idOrName: string; text?: string }
@@ -18,6 +18,7 @@ interface RegisteredTool {
 }
 
 interface MockOptions {
+  /** 基线行 config(模拟宿主按 schema 填默认后的易变值)。 */
   settingsBase?: Record<string, unknown>
   /** 模拟凭据解析结果;默认两个 ref 都可用。 */
   credentialRefs?: Record<string, string | undefined>
@@ -31,6 +32,8 @@ function createMockContext(options?: MockOptions): {
   searchProvider?: WebSearchProviderShape
   fetchProvider?: WebFetchProviderShape
   fetchCalls: Array<{ url: string }>
+  /** 模拟宿主物化 volatile 引用后的 config(字段带 .get())。 */
+  configRef: Record<string, unknown>
   fireSettings: (next: Record<string, unknown>) => void
   runDisposers: () => void
 } {
@@ -39,7 +42,13 @@ function createMockContext(options?: MockOptions): {
   const tools = new Map<string, RegisteredTool>()
   const disposers: Array<() => void> = []
   const fetchCalls: Array<{ url: string }> = []
-  let settingsWatch: ((next: Record<string, unknown>) => void) | undefined
+  // 模拟宿主物化 volatile 引用:config 字段是带 .get() 的引用,实时变更改
+  // 状态对象后派发 loader/volatile-update,apply 侧重新去引用取快照。
+  const configState: Record<string, unknown> = { ...(options?.settingsBase ?? {}) }
+  const configRef: Record<string, unknown> = {}
+  const reference = (key: string) => { configRef[key] = { get: () => configState[key] } }
+  for (const key of Object.keys(configState)) reference(key)
+  const eventListeners = new Map<string, Set<() => void>>()
   let searchProvider: WebSearchProviderShape | undefined
   let fetchProvider: WebFetchProviderShape | undefined
 
@@ -90,28 +99,14 @@ function createMockContext(options?: MockOptions): {
       if (name === 'systemPrompt') {
         return { section: (s: { name: string; text?: string }) => track('promptSection', s.name, () => {}, s.text) }
       }
-      if (name === 'settings') {
-        const userOverride = options?.settingsBase ?? {}
-        return {
-          register(_ns: string, _schema: unknown, registerOptions: Record<string, unknown>) {
-            assert.equal(registerOptions.applies, 'live')
-            assert.equal(registerOptions.exposeToClients, true)
-            const base = registerOptions.base as Record<string, unknown>
-            return {
-              // 模拟 schemastery:base(组合行 config)填默认后作为快照,
-              // 再叠加用户覆盖。
-              get: () => ({ ...base, ...userOverride }),
-              watch(cb: (next: Record<string, unknown>) => void) {
-                settingsWatch = (next) => cb({ ...base, ...userOverride, ...next }) // 模拟 schemastery live watch:回调收到完整合并快照
-                return () => { settingsWatch = undefined }
-              },
-            }
-          },
-        }
-      }
       return undefined
     },
-    on: () => () => {},
+    on(name: string, callback: () => void) {
+      const set = eventListeners.get(name) ?? new Set<() => void>()
+      eventListeners.set(name, set)
+      set.add(callback)
+      return () => { set.delete(callback) }
+    },
     effect(dispose: () => void | (() => void)) {
       const inner = dispose() ?? (() => {})
       disposers.push(inner)
@@ -128,7 +123,14 @@ function createMockContext(options?: MockOptions): {
     get searchProvider() { return searchProvider },
     get fetchProvider() { return fetchProvider },
     fetchCalls,
-    fireSettings: (next) => { settingsWatch?.(next) },
+    configRef,
+    fireSettings: (next) => {
+      Object.assign(configState, next)
+      for (const key of Object.keys(configState)) {
+        if (configRef[key] === undefined) reference(key)
+      }
+      for (const callback of eventListeners.get('loader/volatile-update') ?? []) callback([])
+    },
     runDisposers: () => { for (const d of disposers.splice(0)) d() },
   }
 }
@@ -169,13 +171,9 @@ test('apply 装配:providers 常驻;zread 默认关闭;清理全部可逆', () =
   assert.equal(mock.live.size, 0)
 })
 
-test('settings watch:zread 关闭即卸载工具与提示词,providers 常驻', (t) => {
-  if (loadSchemastery() === null) {
-    t.skip('本机无 schemastery,跳过 settings UI 路径用例')
-    return
-  }
-  const mock = createMockContext({ settingsBase: {} })
-  apply(mock.ctx, { zread: true })
+test('volatile 变更:zread 关闭即卸载工具与提示词,providers 常驻', () => {
+  const mock = createMockContext({ settingsBase: { zread: true } })
+  apply(mock.ctx, mock.configRef)
   assert.ok(mock.live.has('tool:github_search_doc'))
 
   mock.fireSettings({ zread: false })
@@ -272,13 +270,9 @@ test('畸形历史调用只降级展示，执行仍严格拒绝', async () => {
   )
 })
 
-test('zhPrompt 切换:工具 description 与提示词 section 随开关中英切换', (t) => {
-  if (loadSchemastery() === null) {
-    t.skip('本机无 schemastery,跳过 settings UI 路径用例')
-    return
-  }
-  const mock = createMockContext()
-  apply(mock.ctx, { zread: true })
+test('zhPrompt 切换:工具 description 与提示词 section 随开关中英切换', () => {
+  const mock = createMockContext({ settingsBase: { zread: true } })
+  apply(mock.ctx, mock.configRef)
 
   // 默认英文:工具 description 是英文
   const enTool = mock.tools.get('github_read_file')

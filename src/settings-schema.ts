@@ -8,7 +8,9 @@
  * schema 校验,config 以普通值传入(降级语义与旧版一致)。
  */
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { DEFAULT_CREDENTIAL_REF } from './constants.js'
 import { dshHome } from './credentials.js'
 
@@ -58,12 +60,19 @@ export function normalizeSettings(value: unknown): ZhipuSettings {
   }
 }
 
-/** 当前 profile 名:沿 dsh-zh 的 argv 探测,默认 web。 */
-export function argvProfile(): string {
-  const argv = process.argv
+/** 桌面版 Host(Electron RunAsNode)argv 不带 --profile,profile 固定为 desktop
+ * (apps/desktop/src/paths.ts);此时不能落回 web 默认,否则 createRequire 会
+ * 锚到 web profile,拿不到与桌面运行时(asar 内)同实例的 DSH 模块。 */
+export function profileNameFrom(argv: readonly string[], electronVersion: string | undefined): string {
   const flag = argv.indexOf('--profile')
   if (flag !== -1 && flag + 1 < argv.length && !argv[flag + 1].startsWith('-')) return argv[flag + 1]
+  if (electronVersion !== undefined) return 'desktop'
   return 'web'
+}
+
+/** 当前 profile 名:--profile 显式值 > 桌面 Host 判定 > 默认 web。 */
+export function argvProfile(): string {
+  return profileNameFrom(process.argv, process.versions.electron)
 }
 
 /** 当前 profile 目录(运行时真值在 ${DSH_HOME:-~/.dsh}/profiles/<name>)。 */
@@ -74,16 +83,53 @@ export function localProfileDir(): string {
 let schemasteryCache: any
 let schemasteryFailed = false
 
+// DSH 0.1.7-rc 的组合批次经模块 hooks 管线并行动态 import 官方插件的 ESM；
+// 同步 require(esm)（包括 schemastery CJS 入口内部的 require）会撞 Node 的
+// 「not yet fully loaded」：管线被当前同步栈阻塞，重试永远等不到加载完成。
+// 因此用 require.resolve 系只做解析（不求值、无竞态），并优先取 exports 的
+// import 条目做异步 import：整条依赖链（schemastery → cosmokit）都排进同
+// 一条管线串行交付，天然无竞态；顶层 await 保证 Config 构造前实例已就绪。
+function profileEntryPath(requireFromProfile: NodeRequire, name: string): string {
+  const requireEntry: string = requireFromProfile.resolve(name)
+  try {
+    const manifestPath: string = requireFromProfile.resolve(`${name}/package.json`)
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      exports?: Record<string, unknown>
+      main?: unknown
+    }
+    const selfExport: unknown = manifest?.exports?.['.']
+    const entry = typeof selfExport === 'string'
+      ? selfExport
+      : typeof selfExport === 'object' && selfExport !== null
+        ? (selfExport as { import?: unknown; default?: unknown }).import ?? (selfExport as { default?: unknown }).default
+        : undefined
+    if (typeof entry === 'string') return resolve(dirname(manifestPath), entry)
+    if (typeof manifest?.main === 'string') return resolve(dirname(manifestPath), manifest.main)
+  } catch {
+    // exports 不可读时退回 require 条目。
+  }
+  return requireEntry
+}
+
+try {
+  const requireFromProfile = createRequire(join(localProfileDir(), 'package.json'))
+  const entry = profileEntryPath(requireFromProfile, '@deepseek-ai/schemastery')
+  const mod = (await import(pathToFileURL(entry).href)) as { default?: unknown } | null | undefined
+  schemasteryCache = mod !== null && mod !== undefined && mod.default !== undefined ? mod.default : mod
+} catch {
+  schemasteryCache = undefined
+}
+
 /**
- * 同步加载 profile 里的 schemastery(CJS 分支)。Config 导出需要
- * schemastery schema;用 profile 的 require 上下文解析,避免本包显式依赖。
+ * 静态 Config 用的 schemastery 实例。在 profile 模块解析上下文中加载；
+ * 预载失败时走同步兜底（脱离 profile 的测试/CLI 环境），再失败为 null
+ * （降级为无 schema，Config 导出 undefined）。
  */
 export function loadSchemastery(): any {
   if (schemasteryCache !== undefined) return schemasteryCache
   if (schemasteryFailed) return null
   try {
-    const requireFromProfile = createRequire(join(localProfileDir(), 'package.json'))
-    const mod = requireFromProfile('@deepseek-ai/schemastery')
+    const mod = createRequire(join(localProfileDir(), 'package.json'))('@deepseek-ai/schemastery')
     schemasteryCache = mod !== null && mod !== undefined && mod.default !== undefined ? mod.default : mod
   } catch {
     schemasteryFailed = true

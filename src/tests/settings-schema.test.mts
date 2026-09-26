@@ -1,7 +1,7 @@
 // settings-schema 与 client-logic 纯函数单测(host 与 client 两侧默认值一致性)。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_SETTINGS, normalizeSettings } from '../settings-schema.js'
+import { DEFAULT_SETTINGS, normalizeSettings, profileNameFrom } from '../settings-schema.js'
 import { DEFAULTS, normalized, sameSettings, validDraft, hasOwn } from '../client-logic.js'
 
 test('normalizeSettings:空值回默认,未知类型回默认', () => {
@@ -42,4 +42,12 @@ test('hasOwn 区分自有与继承', () => {
   assert.equal(hasOwn({ a: 1 }, 'a'), true)
   assert.equal(hasOwn({ a: 1 }, 'b'), false)
   assert.equal(hasOwn(null, 'a'), false)
+})
+
+test('profileNameFrom:桌面版 Electron Host(argv 无 --profile)判为 desktop', () => {
+  assert.equal(profileNameFrom(['node', 'bin.js', 'web', '--no-open'], undefined), 'web')
+  assert.equal(profileNameFrom(['node', 'bin.js', 'web', '--profile', 'my-prof'], undefined), 'my-prof')
+  assert.equal(profileNameFrom(['node', 'host.js', '--expose-internals'], '37.2.0'), 'desktop')
+  assert.equal(profileNameFrom(['node', 'host.js', '--expose-internals', '--profile', 'x'], '37.2.0'), 'x')
+  assert.equal(profileNameFrom(['node', 'bin.js', 'web', '--profile'], '37.2.0'), 'desktop')
 })

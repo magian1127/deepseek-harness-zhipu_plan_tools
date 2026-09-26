@@ -2,6 +2,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { addManagedRow, hasManagedRow, hotRowBlock, patchPath, removeManagedRow, validateProfileName } from '../bin/patch-row.mjs'
@@ -139,4 +141,14 @@ test('写锁:陈旧锁被回收后写入正常;锁释放后不留锁文件', () 
     restoreHome()
     rmSync(home, { recursive: true, force: true })
   }
+})
+
+test('CLI 拒绝改动 desktop profile 并指向桌面应用插件页', () => {
+  // 测试产物在 .tsbuild/tests/ 下,仓库根 bin/ 需向上两级再进入。
+  const cli = fileURLToPath(new URL('../../bin/dsh-zhipu.mjs', import.meta.url))
+  const result = spawnSync(process.execPath, [cli, 'install', '--profile', 'desktop'], {
+    encoding: 'utf8',
+  })
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /desktop profile 由桌面应用独占管理/)
 })

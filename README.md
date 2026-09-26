@@ -68,6 +68,15 @@ npx -y deepseek-harness-zhipu_plan_tools install --profile web
 
 bundle 按 profile 隔离：Open Design 实际运行 `dsh --profile open-design --stdio`，不是 `headless`。两个非 Web profile 都在下一次短进程启动时加载；`open-design` 的 stdout 是严格 JSONL，本插件信息日志会改走 stderr。
 
+**桌面版 DSH（Electron 应用）**：本插件兼容桌面版（桌面 Host 端口 19387）；桌面 profile（`~/.dsh/profiles/desktop`）由桌面应用独占，`dsh plugin` CLI 与本插件 CLI 都按名拒绝 `--profile desktop`。link 开发安装（桌面应用**未运行**时执行）——编辑 `~/.dsh/profiles/desktop/package.json`：
+
+```jsonc
+"dependencies": { "deepseek-harness-zhipu_plan_tools": "link:<本仓库绝对路径>" },
+"dsh": { "profile": { "bundles": [ /* 官方 bundle 保持原样，末尾追加 */ "deepseek-harness-zhipu_plan_tools" ] } }
+```
+
+在 profile 目录内执行 `pnpm install` 物化链接，启动桌面应用即挂载；改源码后 `npm run build` 并重启桌面应用；卸载移除两处条目后重新 `pnpm install`。搜索/网页读取的凭据存于 `$DSH_HOME`，Web 与桌面版共用。
+
 本地源码联调：
 
 ```powershell

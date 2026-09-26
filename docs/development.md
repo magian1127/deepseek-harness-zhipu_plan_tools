@@ -53,6 +53,7 @@
 
 ### Schema 与工具调用
 
+- `src/settings-schema.ts` 的 `loadSchemastery` 自 DSH 0.1.7-rc 起改为「`require.resolve` 只解析 + exports import 条目 + 文件 URL 异步 `import` 预载（TLA）」：宿主组合批次经模块 hooks 管线并发 import ESM，同步 `require(esm)`（含 schemastery CJS 入口内部对 cosmokit 的 require）会撞「not yet fully loaded」且同步重试无效；预载失败才同步兜底，再失败降级为无 schema。
 - 三个 `github_*` 和 scoped `web_search` 的 parameters/output 都使用纯 JSON Schema，不与 schemastery 简写混用；`required` 只放在对象层数组中。
 - scoped `web_search` 只在原工具对目标 Agent 可见时建立阴影,并保持 1–4 查询、30 秒预算、轮询合并与同批失败取消;结果上限由本插件定为 **40**(= 上游单查询硬上限 10 条 × 4 查询,一次调用内全量透传,高于内置 tool-web 的 8),不能因改说明文字而退化执行契约;若下游要下调上限,注意超过该值时轮询合并会真实丢弃来源并置 `truncated`,用户会看到「来源列表已截断」。
 - `repo_name` 的执行校验保持 `owner/repo`；历史展示可降级，但不能放宽实际 schema。
@@ -101,3 +102,10 @@ zread 上游对未收录/不存在的仓库在 `tools/call` 的 `isError` conten
 - 已确认高危：HTTP 回退无 DNS rebinding 防护（公网域名二次解析到内网不设防，需连接前解析并 pin IP）；duplicate 注册被当成功返回 no-op disposer（HMR/双行下旧 Fiber 卸载后 provider/tool 永久消失）。
 - 中危：回退超时不覆盖 `credentials.resolve`（卡死占满并发槽）；MCP 错误把上游响应体原样进 error/cause（条件性凭据泄漏）；外部标题/正文/URL 直接拼 Markdown 工具输出（无不可信内容隔离）；CLI `--profile` 未校验。
 - 正面范例（保持）：`self-hot-reload.ts` 全能力探测+静默降级；`web.config` 复杂 patch 不走 dsh-zh simple reconcile（安装只走项目 CLI 全量通道）。
+
+## 桌面版 DSH 适配（2026-09-27）
+
+- `src/settings-schema.ts`：`argvProfile()` 拆出纯函数 `profileNameFrom(argv, electronVersion)`——桌面 Host（Electron RunAsNode）argv 不带 `--profile`，`process.versions.electron` 有值时判 `desktop`；显式 `--profile` 仍最优先。
+- `src/bin/cli/invocations.mts`：`runDshPlugin` 按名拒绝 `desktop` profile（含阻止 pnpm 兜底）；`src/bin/cli/main.mts`：desktop profile 未显式 `--port` 时默认 19387。
+- 回归：`src/tests/settings-schema.test.mts`（profile 探测矩阵）+ `src/tests/patch-row.test.mts`（CLI 拦截 spawn 断言）。
+- 共性事实与验收记录见工作区根 `docs/dsh-desktop-support.md`。

@@ -53,6 +53,15 @@ npx -y deepseek-harness-zhipu_plan_tools install --profile web
 
 Bundles are profile-scoped. Open Design actually runs `dsh --profile open-design --stdio`, not `headless`; both non-Web profiles load on their next short-lived process. Because `open-design` reserves stdout for strict JSONL, this plugin routes informational startup logs to stderr there.
 
+**DSH Desktop (the Electron app)**: supported (desktop Host port 19387); the desktop profile (`~/.dsh/profiles/desktop`) is owned exclusively by the app, and both the `dsh plugin` CLI and this plugin's CLI reject `--profile desktop` by name. For a link dev install (while the app is **not running**), edit `~/.dsh/profiles/desktop/package.json`:
+
+```jsonc
+"dependencies": { "deepseek-harness-zhipu_plan_tools": "link:<absolute path to this repo>" },
+"dsh": { "profile": { "bundles": [ /* keep official bundles, append */ "deepseek-harness-zhipu_plan_tools" ] } }
+```
+
+then `pnpm install` inside the profile directory; start the app to mount, `npm run build` + restart after source changes, remove both entries + `pnpm install` to uninstall. Search/reader credentials live under `$DSH_HOME` and are shared between Web and Desktop.
+
 Local source development:
 
 ```powershell

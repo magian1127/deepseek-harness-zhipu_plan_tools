@@ -51,9 +51,40 @@
 
 ## 实现经验
 
+### 运行时门禁（DSH 0.2.1 起）
+
+- `package.json` 同时有 `engines.node` 与 `engines.dsh: ">=0.2.0-rc.2 <0.3.0-0"`。
+  **`engines` 必须保持对象，`engines.dsh` 必须是字符串**：官方判定
+  （`packages/boot/app-boot/src/plugin-compatibility.ts`）在 `engines` 非对象或
+  `engines.dsh` 非字符串时直接抛错并拒绝该包。
+- 一旦声明 `engines.dsh`，运行时判定**完全忽略** `@deepseek-ai/dsh*` 的 `peerDependencies`。
+  本包本来就没有 dsh peer（全靠 profile 解析），所以这次只新增 `engines.dsh`。
+- `engines.dsh` 里**不能**写 `workspace:*` / `workspace:^`（只有 peer 允许），否则判为不兼容。
+- 官方判定带 `{ includePrerelease: true }`。手写 semver 判断若漏了它，`0.2.1-rc.2` 会被
+  误判不兼容——"门禁写了却装不上"的典型原因。
+- **负向验证不要用 `0.2.0-rc.2`**：它是 `>=0.2.0-rc.2` 的**下界本身**，必然通过。
+  用 `0.1.7-alpha.2`、`0.2.0-rc.1` 或 `0.3.0` 验证拒绝。
+
+验证（在 DSH 检出目录用 tsx 跑共享验证器，它直接调用官方实现，不是复刻逻辑）：
+
+```sh
+npx tsx <workspace>/temp/check-engines-dsh.mjs deepseek-harness-zhipu_plan_tools
+npx tsx <workspace>/temp/check-engines-dsh.mjs deepseek-harness-zhipu_plan_tools --runtime 0.1.7-alpha.2
+```
+
+前者退出码 0（兼容 0.2.1-rc.2），后者退出码 1（不兼容），两者都过才证明门禁真的生效。
+
 ### Schema 与工具调用
 
-- `src/settings-schema.ts` 的 `loadSchemastery` 自 DSH 0.1.7-rc 起改为「`require.resolve` 只解析 + exports import 条目 + 文件 URL 异步 `import` 预载（TLA）」：宿主组合批次经模块 hooks 管线并发 import ESM，同步 `require(esm)`（含 schemastery CJS 入口内部对 cosmokit 的 require）会撞「not yet fully loaded」且同步重试无效；预载失败才同步兜底，再失败降级为无 schema。
+- `src/settings-schema.ts` 的 `loadSchemastery` 从 **profile 的模块解析上下文**加载
+  `@deepseek-ai/schemastery`（`createRequire(<profile>/package.json)`），本包不自带副本、也不在
+  `package.json` 声明它——由 profile 供给。本机 `web` profile 实测解析到 3.18.4，`.volatile()`
+  可用（`z.boolean().volatile()` → `meta.volatile = true`，`.get()` 引用正常）。代码里
+  "3.18.2 无 `.volatile()`" 的 meta 回退分支因此是**防御性代码**，当前环境不会走到，不要删。
+- 该函数自 DSH 0.1.7-rc 起为「`require.resolve` 只解析 + exports import 条目 + 文件 URL 异步
+  `import` 预载（TLA）」：宿主组合批次经模块 hooks 管线并发 import ESM，同步 `require(esm)`
+  （含 schemastery CJS 入口内部对 cosmokit 的 require）会撞「not yet fully loaded」且同步重试
+  无效；预载失败才同步兜底，再失败降级为无 schema。
 - 三个 `github_*` 和 scoped `web_search` 的 parameters/output 都使用纯 JSON Schema，不与 schemastery 简写混用；`required` 只放在对象层数组中。
 - scoped `web_search` 只在原工具对目标 Agent 可见时建立阴影,并保持 1–4 查询、30 秒预算、轮询合并与同批失败取消;结果上限由本插件定为 **40**(= 上游单查询硬上限 10 条 × 4 查询,一次调用内全量透传,高于内置 tool-web 的 8),不能因改说明文字而退化执行契约;若下游要下调上限,注意超过该值时轮询合并会真实丢弃来源并置 `truncated`,用户会看到「来源列表已截断」。
 - `repo_name` 的执行校验保持 `owner/repo`；历史展示可降级，但不能放宽实际 schema。

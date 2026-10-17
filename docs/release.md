@@ -38,6 +38,24 @@ npm pack --dry-run --json
 不要在其他技术文档维护“当前版本”副本。
 
 ## 版本记录
+### 0.1.8
+
+- 适配 DSH 0.2.1：`package.json` 新增 `engines.dsh: ">=0.2.0-rc.2 <0.3.0-0"`（保留 `engines.node`），
+  宿主按该门禁单独判定，0.1.x 及更早、0.3.0 起均被拒绝加载；
+- 核对 0.2.1 破坏性变更：本包**不涉及**工具呈现 `both`、`agent-instructions` 的 `dshHome`、
+  `/invariant` 子路径、子路径插件展示清单、session cwd、account model catalog 与 pi-ai 路由更名
+  （逐条结论见 [`behavior.md`](behavior.md#021-破坏性变更核对结论本包不涉及)）；
+- 复核 0.2.1 的 web provider 契约未变：`web` 行的 `searchProvider` / `fetchProvider` 仍是
+  volatile 字符串，回退语义与 `web_search` scope shadow 语义不受影响；
+- 复核 profile 供给的 schemastery（实测 3.18.4）仍提供 `.volatile()`；
+- 环境要求由"DSH ≥ 0.1.7-alpha.2"改为与门禁一致的区间；
+- 修正双语 README 徽章（此前停留在 0.1.6，与 `package.json` 不一致）。
+
+### 0.1.7
+
+- 支持桌面版 DSH：profile 探测识别 Electron Host，CLI 拒改 desktop 并默认 19387 端口
+  （见 git 历史 `129a585`；本次一并把双语 README 徽章对齐到该版本线）。
+
 ### 0.1.6
 
 - 迁移插件配置到插件页组合包槽位：配置表单改为向 `plugins.bundle.config`（键为本包 npm 包名）注册，配置存储归 profile 行所有，随 DSH 0.1.7 的 `settings` 存储退役同步；client 半边精简；

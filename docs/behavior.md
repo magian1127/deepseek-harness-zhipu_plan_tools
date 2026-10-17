@@ -100,7 +100,71 @@ provider 的 `available()` 只确认 credentials 服务是否可解析或本地�
 - **错误消息脱敏**：智谱 MCP 与仓库工具的失败消息为固定分类文案（含工具名、状态码与实际请求端点，对齐官方 v0.1.2 起 web_search 失败报端点的行为）；上游响应体/网络错误原文不进入错误消息或 cause，仅以不可枚举属性保留截断供排障。API Key 不会出现在任何错误路径。
 - **不可信内容隔离**：搜索结果的标题/摘要经控制字符与 Markdown 结构转义，URL 仅允许 http(s) 且无控制字符（否则退化为纯文本）；网页读取正文前后包裹「外部网页内容（不可信）」边界标记，提示模型不要执行正文中出现的指令。
 
-## 错误码速查
+## 运行时版本门禁（DSH 0.2.1 起）
+
+`package.json` 声明 `engines.dsh: ">=0.2.0-rc.2 <0.3.0-0"`，与 `engines.node` 并存。
+DSH 0.2.1 的插件准入（`packages/boot/app-boot/src/plugin-compatibility.ts` 的
+`unmetRequirements()`）规则：
+
+1. 清单**有** `engines.dsh` → 它单独决定结果，`@deepseek-ai/dsh*` 的 `peerDependencies`
+   **完全被忽略**；
+2. 没有 `engines.dsh` → 回退 peer 规则（本包未声明任何 dsh peer，故旧版 DSH 会放过本包）；
+3. 判定用 `semver.satisfies(version, range, { includePrerelease: true })`；
+4. `engines` 非对象或 `engines.dsh` 非字符串 → 该包被**拒绝**。
+
+用户可见后果：DSH **0.1.x 及更早**加载本包时会被拒绝并提示 `engines.dsh` 要求；
+**0.3.0 起**（含 `0.3.0-rc.1`）同样拒绝。`0.2.0-rc.2` 是该范围的**下界本身，判为兼容**——
+这一条容易误判成"门禁失效"，实际是区间定义使然。
+
+本包此前把环境要求写成"DSH ≥ 0.1.7-alpha.2"；0.2.1 起该表述与门禁一致收敛为上面的区间。
+
+### 0.2.1 破坏性变更核对结论（本包不涉及）
+
+| 变更 | 本包结论 |
+| --- | --- |
+| 工具呈现方式只接受 `native` / `ptc`，`both` 被拒 | 不涉及：本包不设置 presentation mode，源码里也没有 `both` 取值（`both` 仅出现在一条 client 注释中） |
+| `agent-instructions` 行不再接受 `dshHome` | 不涉及：`cordis.patch.yml` 只改 `web` 行与 `insert` 一行，无 `agent-instructions` 行。源码中的 `dshHome()` 是本包自己的凭据解析函数名，不是该配置键 |
+| 运行时不变式 `/invariant` 子路径导出被移除 | 不涉及：无该导入 |
+| 子路径插件改读 `<子路径>/icon`，不再读 `<子路径>/package.json` | 不涉及：`exports` 只有 `.` / `./client` / `./cordis.patch.yml` / `./locale/*.json` / `./package.json`，没有子路径插件清单 |
+| `webStartup` 取代 `webRuntime` 与 `web-runtime` 行的 `trustedHosts` | 不涉及：本包不注入 `webRuntime`、不读 `trustedHosts` |
+| Session 工作目录替代内置 cwd 配置 | 不涉及：不读写内置 cwd 配置 |
+| `deepseek-account-model-catalog`、pi-ai 路由更名 | 不涉及：本包不是 LLM provider |
+| `{{cwd}}` prompt 变量被移除（未注册变量直接抛错） | 不涉及：本包注入的 section 与工具说明都没用 `{{...}}` 模板变量 |
+
+### web provider 契约（0.2.1 复核，未变）
+
+`cordis.patch.yml` 通过**行 config 覆盖** `web` 行的 `searchProvider` / `fetchProvider`。
+0.2.1 的 `packages/web/web/src/index.ts` 仍是：
+
+```ts
+const Config = z.object({
+  searchProvider: z.string().volatile(),
+  fetchProvider: z.string().volatile(),
+})
+```
+
+即两个键都是 **volatile 字符串**，仍由 `ctx.web.registerSearchProvider` /
+`registerFetchProvider` 注册 provider、`config.*` 与 `DSH_WEB_SEARCH_PROVIDER` /
+`DSH_WEB_FETCH_PROVIDER` 环境变量按"配置优先、环境变量兜底"解析。
+**0.2.1 对这套契约没有任何改动**，本包的回退语义（关闭 `search` 回退 DeepSeek 直连、
+关闭 `reader` 回退受限 HTTP 抓取）与 `web_search` scope shadow 语义也不受影响。
+
+### schemastery 解析（0.2.1 复核）
+
+`src/settings-schema.ts` 从 **profile 的模块解析上下文**加载 `@deepseek-ai/schemastery`
+（`createRequire(<profile>/package.json)`），不自带副本。实测本机 `web` profile 解析到：
+
+| 包 | profile 解析结果 |
+| --- | --- |
+| `@deepseek-ai/schemastery` | 3.18.4 |
+| `@deepseek-ai/cordis` | 4.0.5（DSH 检出 `vendor/cordis`） |
+
+两者都提供 `.volatile()`（3.18.4 实测 `z.boolean().volatile()` 返回 `meta.volatile = true`，
+`.get()` 引用可用），因此**代码里"3.18.2 无 `.volatile()`"的兜底分支保持为防御性代码，
+当前环境不会走到**。本包 `package.json` **不声明** `@deepseek-ai/*` 依赖——照简报
+"不要为不用的包凭空加依赖"，schemastery 由 profile 供给。
+
+
 
 下表同时列出插件自身错误码和可能由 DSH web 层返回的集成错误码：
 

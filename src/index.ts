@@ -174,6 +174,8 @@ export function apply(ctx: HostContext, config: Record<string, unknown> = {}): v
     if (systemPrompt !== undefined && systemPrompt !== null) {
       for (const section of ZREAD_PROMPT_SECTIONS) {
         try {
+            // github_* 是 zread 新增工具(DSH 无同名片),此处是新增段而非替换段:
+            // 110 只决定本段位置;替换型段(tool:web_search)必须沿用官方 order。
             promptDisposers.push(systemPrompt.section({ name: section.name, order: 110, text: () => current.zhPrompt ? section.zh : section.en }))
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : String(error)

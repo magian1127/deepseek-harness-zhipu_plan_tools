@@ -26,6 +26,7 @@ DSH bundle 按 profile 独立组合。Open Design 实际启动 `dsh --profile op
 - **极简模式（minimal 预设）不注入**:该 preset 是“仅持久 shell + str_replace_editor”的双工具组合,本插件不为其建立 `web_search` 阴影;`zread` 开启时还在该 Agent 作用域 deny 全局 `github_*` 工具(极简 agent 的继承视图会暴露 host 全局注册的工具,只有显式 deny 才能保持双工具承诺)——该 deny 与 `search` 开关无关,只要插件 `enabled` 即生效; 会话中途切换预设(如 cordis → minimal)时由 `agent-preset/selected` 重新评估并撤销阴影/改挂 deny,避免残留注入。
 - 模型看到的 `web_search` 是本插件的(description 按语言切换),不是内置的;调用保留内置契约的每次 1–4 条查询、30 秒工具预算与同批失败联动取消，**合并来源上限由本插件设为 40 条**(= 智谱上游单查询硬上限 10 条 × 4 条查询,一次调用内全量透传,不再丢弃任何已抓回的来源;内置 tool-web 为 8 条);上游单查询无法超过 10 条且无条数参数,需要更多来源请拆成多条查询;超量返回由插件按请求上限预裁剪,来源面板不再显示「来源列表已截断」;
 - 系统提示中的 `tool:web_search` 说明同样只出现本插件的版本,内置原文不会重复出现;调用中与历史回放仍使用 DSH 的搜索结果卡片和结构化来源 meta;
+- 该说明是**对官方同名段的替换,不是新增段**:`order` 沿用官方 `TOOL_WEB_SEARCH`(运行时 `systemPrompt.getSectionOrder('TOOL_WEB_SEARCH')`,旧宿主回退 2000),因此中文化不会改变系统提示词里的位置;
 - 说明为**一段自写文本**(体现智谱后端),含使用方式与查询要点:收窄目标、补充时限/地区/版本限定、避免泛化与多问题拼接、先搜后迭代、保留用户原意 —— 不再单独注入查询指引 section;
 - 语言:默认英文(与内置工具风格一致),开启 `zhPrompt` 后为中文。
 

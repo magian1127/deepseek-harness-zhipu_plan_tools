@@ -21,6 +21,14 @@ const SEARCH_MAX_QUERIES = 4
 const SEARCH_MAX_RESULTS = 40
 const SEARCH_TIMEOUT_MS = 30_000
 
+/**
+ * 官方 tool-web 的 `tool:web_search` 段位置(DSH `SECTION_ORDERS.TOOL_WEB_SEARCH`)。
+ * 本插件的说明段是**同名替换**,不是新增段:order 必须与官方一致,否则智谱阴影会把
+ * 整段从工具说明区挪到 persona 之后。运行时优先读
+ * `systemPrompt.getSectionOrder('TOOL_WEB_SEARCH')`,此常量只作旧宿主回退。
+ */
+const OFFICIAL_WEB_SEARCH_ORDER = 2000
+
 interface WebSource {
   url: string
   title?: string
@@ -189,6 +197,22 @@ function parseMeta(value: unknown): SearchMeta | undefined {
   return { sources, truncated, ...answer !== undefined ? { answer } : {} }
 }
 
+interface ScopeSystemPrompt {
+  section(section: { name: string; order?: number; text: string | ((context: unknown) => string) }): Disposer
+  /** DSH systemPrompt 服务的官方段位置查询;旧宿主缺席时回退 OFFICIAL_WEB_SEARCH_ORDER。 */
+  getSectionOrder?(name: string): number
+}
+
+/** 官方 `tool:web_search` 段位置:替换型 section 必须沿用原版 order。 */
+function officialWebSearchOrder(prompt: ScopeSystemPrompt): number {
+  try {
+    const order = prompt.getSectionOrder?.('TOOL_WEB_SEARCH')
+    return typeof order === 'number' && Number.isFinite(order) ? order : OFFICIAL_WEB_SEARCH_ORDER
+  } catch {
+    return OFFICIAL_WEB_SEARCH_ORDER
+  }
+}
+
 /** 在单个 Agent 作用域注册 web_search 工具与说明。 */
 export function installSearchToolReplacementForAgent(
   agent: AgentLike,
@@ -197,10 +221,7 @@ export function installSearchToolReplacementForAgent(
   const scopedCtx = agent.ctx
   const tools = scopedCtx.get('tools') as ScopeTools | undefined | null
   const web = scopedCtx.get('web') as ScopeWeb | undefined | null
-  const systemPrompt = scopedCtx.get('systemPrompt') as
-    | { section(section: { name: string; order?: number; text: string | ((context: unknown) => string) }): Disposer }
-    | undefined
-    | null
+  const systemPrompt = scopedCtx.get('systemPrompt') as ScopeSystemPrompt | undefined | null
   if (tools === undefined || tools === null || web === undefined || web === null) return undefined
 
   const disposers: Disposer[] = []
@@ -286,7 +307,8 @@ export function installSearchToolReplacementForAgent(
     if (systemPrompt !== undefined && systemPrompt !== null) {
       disposers.push(systemPrompt.section({
         name: 'tool:web_search',
-        order: 110,
+        // 替换官方同名段,不是新增段:位置必须与官方 TOOL_WEB_SEARCH 一致。
+        order: officialWebSearchOrder(systemPrompt),
         text: () => pick(WEB_SEARCH_SECTION, getSettings()),
       }))
     }

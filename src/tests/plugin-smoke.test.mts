@@ -326,6 +326,8 @@ test('工具替换:Agent 作用域注册同名 web_search 工具与说明,语言
             registeredSections.push(section)
             return () => {}
           },
+          // 官方段位置查询:替换型 section 必须沿用官方 order(DSH TOOL_WEB_SEARCH=2000)。
+          getSectionOrder: (orderName: string) => orderName === 'TOOL_WEB_SEARCH' ? 2000 : 0,
         }
       }
       return undefined
@@ -341,6 +343,7 @@ test('工具替换:Agent 作用域注册同名 web_search 工具与说明,语言
   assert.match(String(enTool.description), /Search the web for up-to-date information/)
   const enSection = registeredSections.find((section) => section.name === 'tool:web_search')
   assert.ok(enSection)
+  assert.equal(enSection.order, 2000, '替换官方段的 order 必须与官方 TOOL_WEB_SEARCH 一致(2000)')
   const enText = typeof enSection.text === 'function' ? (enSection.text as () => string)() : String(enSection.text)
   assert.match(enText, /Use the web_search tool to search the web through Zhipu/)
   assert.ok(!/discover current information/.test(enText), '说明不得再是内置原版文本')
@@ -360,5 +363,30 @@ test('工具替换:Agent 作用域注册同名 web_search 工具与说明,语言
     const zhText = typeof zhSection.text === 'function' ? (zhSection.text as () => string)() : String(zhSection.text)
   assert.match(zhText, /使用 web_search 工具通过智谱/)
   assert.match(zhText, /使用 web_search 工具/)
+  assert.equal(zhSection.order, 2000, '中英文切换不改变替换段的官方位置')
   disposer()
+
+  // 旧宿主没有 getSectionOrder:回退官方常量 2000,绝不退回自定位置。
+  const legacySections: Array<{ name: string; order?: number; text: unknown }> = []
+  const legacyCtx = {
+    get(name: string): any {
+      if (name === 'tools') return { register: () => () => {} }
+      if (name === 'web') return { search: async () => ({ sources: [], truncated: false }) }
+      if (name === 'systemPrompt') {
+        return {
+          section: (section: { name: string; order?: number; text: unknown }) => {
+            legacySections.push(section)
+            return () => {}
+          },
+        }
+      }
+      return undefined
+    },
+  }
+  const legacyDisposer = installSearchToolReplacementForAgent({ ctx: legacyCtx as unknown as HostContext }, getSettings as never)
+  assert.ok(legacyDisposer)
+  const legacySection = legacySections.find((section) => section.name === 'tool:web_search')
+  assert.ok(legacySection)
+  assert.equal(legacySection.order, 2000, '旧宿主回退官方 TOOL_WEB_SEARCH 位置')
+  legacyDisposer()
 })

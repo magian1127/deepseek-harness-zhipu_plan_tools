@@ -40,6 +40,7 @@ function createMockContext(options?: MockOptions): {
   const calls: MockCall[] = []
   const live = new Set<string>()
   const tools = new Map<string, RegisteredTool>()
+  const sections = new Map<string, { name: string; order?: number; text?: string }>()
   const disposers: Array<() => void> = []
   const fetchCalls: Array<{ url: string }> = []
   // 模拟宿主物化 volatile 引用:config 字段是带 .get() 的引用,实时变更改
@@ -97,7 +98,12 @@ function createMockContext(options?: MockOptions): {
         }
       }
       if (name === 'systemPrompt') {
-        return { section: (s: { name: string; text?: string }) => track('promptSection', s.name, () => {}, s.text) }
+        return {
+          section: (s: { name: string; order?: number; text?: string }) => {
+            sections.set(s.name, s)
+            return track('promptSection', s.name, () => { sections.delete(s.name) }, s.text)
+          },
+        }
       }
       return undefined
     },
@@ -120,6 +126,7 @@ function createMockContext(options?: MockOptions): {
     calls,
     live,
     tools,
+    sections,
     get searchProvider() { return searchProvider },
     get fetchProvider() { return fetchProvider },
     fetchCalls,
@@ -175,6 +182,8 @@ test('volatile 变更:zread 关闭即卸载工具与提示词,providers 常驻',
   const mock = createMockContext({ settingsBase: { zread: true } })
   apply(mock.ctx, mock.configRef)
   assert.ok(mock.live.has('tool:github_search_doc'))
+  // github_* 是新增工具说明段，但必须落在工具说明区（3060），不能用 persona 区低位 order。
+  assert.equal(mock.sections.get('tool:github_search_doc')?.order, 3060)
 
   mock.fireSettings({ zread: false })
   assert.equal(mock.live.has('tool:github_search_doc'), false)

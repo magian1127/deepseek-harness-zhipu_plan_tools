@@ -64,6 +64,12 @@ const ZREAD_PROMPT_SECTIONS: Array<{ name: string; en: string; zh: string }> = [
   },
 ]
 
+/**
+ * github_* 说明段是 zread 的**新增**工具说明(DSH 无同名片),但同样属于工具说明区:
+ * 落在工具区末尾、MCP 段(3100)之前,不用 persona 区(<1000)的低位 order。
+ */
+const ZREAD_SECTION_ORDER = 3060
+
 export function apply(ctx: HostContext, config: Record<string, unknown> = {}): void {
   // 基线:宿主传入的行 config(volatile 字段为引用,去引用后归一化)。
   let current: ZhipuSettings = normalizeSettings(dereferenceConfig(config))
@@ -175,8 +181,9 @@ export function apply(ctx: HostContext, config: Record<string, unknown> = {}): v
       for (const section of ZREAD_PROMPT_SECTIONS) {
         try {
             // github_* 是 zread 新增工具(DSH 无同名片),此处是新增段而非替换段:
-            // 110 只决定本段位置;替换型段(tool:web_search)必须沿用官方 order。
-            promptDisposers.push(systemPrompt.section({ name: section.name, order: 110, text: () => current.zhPrompt ? section.zh : section.en }))
+            // 但它是工具说明,必须落在工具说明区(3060,工具区末尾/MCP 段之前),
+            // 不能用 persona 区(<1000)的低位 order。
+            promptDisposers.push(systemPrompt.section({ name: section.name, order: ZREAD_SECTION_ORDER, text: () => current.zhPrompt ? section.zh : section.en }))
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : String(error)
           if (!/duplicate|already/i.test(message)) throw error

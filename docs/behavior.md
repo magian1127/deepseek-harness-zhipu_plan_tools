@@ -42,7 +42,7 @@ DSH bundle 按 profile 独立组合。Open Design 实际启动 `dsh --profile op
 | `enabled` | boolean | `true` | 总开关。关闭后搜索/读取进入兼容回退、仓库工具与提示卸载；配置入口保留 |
 | `search` | boolean | `true` | 是否接管 `web_search`。关闭后回退 DeepSeek 原生搜索(见下方回退语义) |
 | `reader` | boolean | `true` | 是否接管 `web_fetch`。关闭后回退受限 HTTP(S) 抓取 |
-| `zread` | boolean | `false` | 是否注册三个 `github_*` 工具；关闭后立即从模型工具目录移除 |
+| `zread` | boolean | `false` | 是否注册三个 `github_*` 工具；关闭后立即从模型工具目录移除；三个工具的指引段落在工具说明区（`order 3060`，工具区末尾、MCP 段之前），不使用 persona 区低位 |
 | `zhPrompt` | boolean | `false` | 提示词中文化:开启后注入的系统提示词 section、`github_*` 工具说明及其错误消息使用中文(默认英文,与内置工具一致);开启时 `zread` 工具会随切换重装 |
 | `credentialRef` | string | `ZAI_CODING_CN_API_KEY` | 智谱 GLM Coding Plan API Key 的凭据引用名 |
 
